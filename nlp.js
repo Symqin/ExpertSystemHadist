@@ -1,7 +1,11 @@
 /**
  * Modul Hybrid NLP untuk HadistSystemChecker
- * Meliputi: Preprocessing, Typo Correction (Jaro-Winkler token-level),
- *           TF-IDF Vectorization, dan Cosine Similarity.
+ * Meliputi: Preprocessing, Typo Correction (Jaro-Winkler token-level, khusus preprocessing),
+ *           TF-IDF Vectorization (dengan OOV Penalty untuk kata asing),
+ *           Cosine Similarity (40%), dan Overlap Coverage Similarity (60%).
+ *
+ * Catatan: Jaro-Winkler TIDAK ikut menghitung skor akhir.
+ *          Ia hanya mengoreksi typo sebelum vektorisasi.
  */
 
 const { jaroWinklerSimilarity } = require('./similarity');
@@ -99,10 +103,9 @@ function preprocessText(text) {
     .filter(token => token.length > 1 && !STOPWORDS.has(token));
 }
 
-
 /**
  * Koreksi typo di level token menggunakan Jaro-Winkler.
- * Hanya mengoreksi jika ada kandidat di vocabulary dengan skor >= 0.88
+ * Hanya mengoreksi jika ada kandidat di vocabulary dengan skor >= 0.85
  * dan selisih panjang kata <= 2 karakter.
  * @param {string[]} tokens - Token query hasil preprocessText
  * @param {Set<string>} vocabulary - Himpunan semua token dari corpus
@@ -117,7 +120,7 @@ function correctTypos(tokens, vocabulary) {
     if (token.length <= 2) return token;           // Lewati token sangat pendek
 
     let bestWord = token;
-    let bestScore = 0.88; // Threshold minimum untuk koreksi typo
+    let bestScore = 0.85; // Menangkap variasi typo (misal: sholat -> shalat)
 
     for (const vocabWord of vocabArray) {
       // Optimisasi: lewati kata dengan perbedaan panjang > 2
@@ -149,7 +152,7 @@ function buildIdf(corpus) {
     }
   }
 
-  const idf = {};
+  const idf = { _maxIdf: Math.log(N) }; // Simpan batas maksimal IDF untuk kata asing
   for (const term in docFreq) {
     idf[term] = Math.log(N / (1 + docFreq[term]));
   }
@@ -175,8 +178,12 @@ function vectorize(tokens, idf) {
   const vector = {};
   for (const token in tf) {
     const tfScore = tf[token] / tokens.length;
-    const idfScore = idf[token] !== undefined ? idf[token] : 0;
-    // Hanya sertakan term dengan IDF > 0 (term yang tidak ada di semua dokumen)
+    
+    // Jika kata tidak ada di corpus (kata asing/typo parah/makian), berikan bobot IDF maksimal
+    // Ini PENTING agar kata-kata asing tersebut menambah beban matriks Query,
+    // yang mengakibatkan Skor Overlap / Cosine jatuh drastis saat dicocokkan dengan hadits asli.
+    const idfScore = idf[token] !== undefined ? idf[token] : (idf._maxIdf || 1);
+    
     if (idfScore > 0) {
       vector[token] = tfScore * idfScore;
     }

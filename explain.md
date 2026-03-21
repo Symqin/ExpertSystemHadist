@@ -23,7 +23,9 @@ Dokumen ini menjelaskan isi file utama, kegunaan, serta alur kerja algoritma dar
 
 Alur di endpoint `/search` memakai **dua lapisan inferensi**: NLP hybrid + lapisan sistem pakar forward chaining.
 
-### Lapisan 1: NLP Hybrid (TF-IDF + Cosine Similarity + Jaro-Winkler)
+### Lapisan 1: NLP Hybrid (TF-IDF + Cosine Similarity + Overlap Coverage)
+
+> **Catatan penting:** Jaro-Winkler **hanya** digunakan di tahap Preprocessing (koreksi typo per kata). Ia **tidak ikut menghitung skor kemiripan akhir**. Skor akhir ditentukan murni oleh Cosine Similarity (40%) dan Overlap Coverage (60%).
 
 1. Ambil seluruh hadits dari database SQLite.
 2. Ekstrak **matan** dari setiap hadits (menghapus sanad) memakai `extractMatan`.
@@ -36,9 +38,10 @@ Alur di endpoint `/search` memakai **dua lapisan inferensi**: NLP hybrid + lapis
 5. Proses query user:
   - `extractMatan` agar fokus pada isi matan saja
   - `preprocessText` menghasilkan token bersih
-  - `correctTypos` memperbaiki typo per kata memakai Jaro-Winkler (threshold ≥ 0.88)
+  - `correctTypos` memperbaiki typo per kata memakai Jaro-Winkler (threshold ≥ 0.85)
 6. Hitung IDF dari seluruh corpus (`buildIdf`).
 7. Buat vektor TF-IDF untuk query dan setiap dokumen (`vectorize`).
+   - **OOV Penalty**: Kata yang tidak ditemukan di corpus (kata asing, makian, typo parah) **tidak dibuang**, melainkan diberi bobot IDF maksimal (`_maxIdf`). Ini membuat kata asing memperberat total bobot query, sehingga skor Overlap/Cosine jatuh drastis ketika dicocokkan dengan hadits asli yang tidak memiliki kata tersebut.
 8. Hitung **Cosine Similarity** antara vektor query dan vektor dokumen (Pencocokan Global).
 9. Hitung **Overlap (Coverage) Similarity** untuk mengecek seberapa persen token query tertutupi oleh dokumen dokumen tanpa menghukum panjang dokumen (Pencocokan Substring parsial).
 10. **Skor akhir** = kombinasi tertimbang: `(Cosine × 0.40) + (Overlap × 0.60)`.
@@ -220,9 +223,10 @@ Kategori pola yang dideteksi:
 
 ## 3) Penjelasan Fungsi Algoritma
 
-### Jaro-Winkler (Token Typo Correction)
-- **Tujuan**: Koreksi kata yang salah ketik pada tahap Pra-Pemrosesan.
-- **Cara kerja**: Membandingkan token query dengan vocabulary corpus, pilih skor tertinggi di atas threshold (≥ 0.88). Karena dirancang dengan sistem *Prefix Bonus*, Jaro-Winkler sangat brilian mendeteksi *typo* manusia.
+### Jaro-Winkler (Token Typo Correction — Tahap Preprocessing)
+- **Tujuan**: Koreksi kata yang salah ketik pada tahap Pra-Pemrosesan. **Tidak ikut menghitung skor kemiripan akhir.**
+- **Cara kerja**: Membandingkan token query dengan vocabulary corpus, pilih skor tertinggi di atas threshold (≥ 0.85). Karena dirancang dengan sistem *Prefix Bonus*, Jaro-Winkler sangat brilian mendeteksi *typo* manusia.
+- **Posisi**: Bekerja setelah `preprocessText()` dan sebelum `vectorize()`. Output-nya adalah array token yang sudah dikoreksi ejaannya.
 
 ### TF-IDF (Pemberi Bobot Kata Kunci)
 - Mengubah teks menjadi vektor angka berbobot.
@@ -239,9 +243,14 @@ Kategori pola yang dideteksi:
 - Menghindari turunnya skor di The Cosine Similarity akibat perbedaan rasio ekstrim panjang kalimat antara kata kunci pengguna dan hadits aslinya.
 - Pembobotan 60% Overlap dan 40% Cosine memberikan hasil optimal untuk memfasilitasi pencarian sub-kalimat/potongan *(Substring Match)*.
 
+### OOV Penalty (Hukuman Kata Asing)
+- Kata yang tidak ada di vocabulary corpus (Out-of-Vocabulary) diberi bobot IDF maksimal (`_maxIdf = log(N)`) alih-alih diabaikan (bernilai 0).
+- Tujuan: Mencegah manipulasi skor oleh kata sampah/makian/typo parah. Tanpa fitur ini, kata asing akan dibuang dan skor menjadi tinggi palsu karena hanya 1 kata valid yang dicocokkan.
+- Contoh: Input "kata_kasar agama kata_kasar" → tanpa OOV Penalty skornya 0.9 (palsu tinggi), dengan OOV Penalty skornya < 0.20 (benar).
+
 ### Representasi Token
 - Saat ini sistem hanya memakai token kata tunggal (unigram) setelah preprocessing dan koreksi typo.
-- Informasi konteks frasa ditangkap lewat kombinasi distribusi kata (TF-IDF) dan gabungan skor Cosine + Jaro-Winkler, tanpa perlu membentuk n-gram eksplisit.
+- Informasi konteks frasa ditangkap lewat kombinasi distribusi kata (TF-IDF) dan gabungan skor Cosine + Overlap, tanpa perlu membentuk n-gram eksplisit.
 
 ### Substring Boost
 - Jika query matan ada di dalam matan dokumen (atau sebaliknya), skor ditingkatkan ke minimal 0.95.
@@ -277,27 +286,18 @@ Input teks user
   → Normalisasi
   → Extract matan (pisahkan dari sanad)
   → Preprocess (lowercase, hapus tanda baca, stopwords)
-  → Typo correction (Jaro-Winkler per token)
-  → TF-IDF vectorization
+  → Typo correction (Jaro-Winkler per token, HANYA preprocessing)
+  → TF-IDF vectorization + OOV Penalty
   → Cosine Similarity (bobot 40%)
   → Overlap Coverage Similarity (bobot 60%)
   → Substring Boost
   → Ranking + Tier NLP (found / review / notfound)
   → Forward Chaining Sistem Pakar:
       R0: Base Rule (tier → status awal)
-      R1: Cek pola pahala berlebihan
-      R2: Cek pola amalan bid'ah
-      R3: Cek pola ancaman berlebihan
-      R4: Adjust confidence jika skor borderline
-      R5: Cek kontradiksi dengan Al-Quran
-      R6: Cek bahasa/istilah modern
-      R8: Tepat Pola Spesifik
+      R1-R8: Aturan otomatis (pahala berlebihan, bid'ah, ancaman, kontradiksi Quran, bahasa modern, regex, dsb)
   → Kesimpulan Awal Otomatis
   → JIKA skor < 0.60 & Tiada RedFlag Otomatis:
-      Kuesioner Pakar Manual Berbasis Observasi
-      M1-M5: Kriteria Kritik Teks Manual (Al-Mujazafah, Rikakah, dsb)
-      Memicu Aturan R9-R12.
-  → Kesimpulan Akhir Gabungan
-  → Kesimpulan: status pakar + confidence + alasan + rules fired
+      Kuesioner Pakar Manual (M1-M5) → Memicu R8m-R12
+  → Kesimpulan Akhir Gabungan: status pakar + confidence + alasan + rules fired
 ```
 

@@ -1,11 +1,13 @@
 # Hadith Matan Checker — Sistem Pakar Deteksi Hadits Palsu
 
-Aplikasi web **sistem pakar** untuk mendeteksi indikasi hadits palsu (maudhu) berdasarkan analisis **matan** (isi teks hadits). Dibangun dengan Node.js, menggunakan pendekatan **NLP Hybrid** (TF-IDF + Cosine Similarity + Jaro-Winkler) dan **Forward Chaining Expert System** dengan beberapa aturan inferensi terstruktur.
+Aplikasi web **sistem pakar** untuk mendeteksi indikasi hadits palsu (maudhu) berdasarkan analisis **matan** (isi teks hadits). Dibangun dengan Node.js, menggunakan pendekatan **NLP Hybrid** (TF-IDF + Cosine Similarity + Overlap Coverage Score) dan **Forward Chaining Expert System** dengan beberapa aturan inferensi terstruktur.
 
 ## 🚀 Fitur Utama
 
-- **NLP Hybrid Engine** — Kombinasi TF-IDF, Cosine Similarity (40%), dan Overlap/Coverage Score (60%) untuk pencarian kemiripan parsial (Substring). Jaro-Winkler khusus digunakan untuk koreksi ejaan level kata (typo correction).
+- **NLP Hybrid Engine** — Kombinasi TF-IDF, Cosine Similarity (40%), dan Overlap/Coverage Score (60%) untuk pencarian kemiripan parsial. Jaro-Winkler digunakan **khusus di tahap preprocessing** untuk koreksi ejaan (typo correction), **bukan** untuk scoring.
+- **OOV Penalty (Out-of-Vocabulary)** — Kata asing, makian, atau typo parah yang tidak ada di corpus hadits akan mendapat bobot hukuman maksimal (_maxIdf), sehingga skor NLP langsung jatuh drastis alih-alih diabaikan.
 - **Forward Chaining Expert System** — serangkaian aturan inferensi (R0, R1, ...) yang mengevaluasi matan secara berurutan dari fakta menuju kesimpulan. Aturan baru bisa ditambah tanpa mengubah arsitektur.
+- **Kuesioner Interaktif Pakar** — Pertanyaan observasi manual (M1-M5) yang aktif jika skor < 0.60 dan tidak ada red-flag otomatis, memicu aturan R8m-R12.
 - **Deteksi Red Flag** — Mengenali pola janji pahala berlebihan, amalan bid'ah, ancaman tidak proporsional, kontradiksi Al-Quran, dan bahasa modern.
 - **Database 30.000+ Hadits** — Koleksi hadits shahih dari API publik sebagai rujukan.
 - **Top 5 Ranking** — Menampilkan 5 hadits paling mirip beserta skor dan status.
@@ -16,9 +18,9 @@ Aplikasi web **sistem pakar** untuk mendeteksi indikasi hadits palsu (maudhu) be
 Input Teks User
   → Extract Matan (pisahkan dari sanad)
   → Preprocess (lowercase, hapus tanda baca, stopwords)
-  → Typo Correction (Jaro-Winkler per token)
-  → TF-IDF Vectorization
-  → Cosine Similarity (Global Match) + Overlap Score (Substring Match)
+  → Typo Correction (Jaro-Winkler per token, HANYA preprocessing)
+  → TF-IDF Vectorization + OOV Penalty (kata asing diberi bobot hukuman)
+  → Cosine Similarity (Global Match, 40%) + Overlap Score (Substring Match, 60%)
   → Ranking + Tier NLP (found / review / notfound)
   → Forward Chaining Sistem Pakar:
       R0: Base Rule (tier NLP → status awal)
@@ -66,7 +68,7 @@ Input Teks User
 | `server.js` | User Interface (backend) | Server Express, middleware JSON, CORS, static file |
 | `routes/search.js` | Inference Engine | Pipeline utama: NLP hybrid → forward chaining |
 | `nlp.js` | Inference Engine (NLP) | extractMatan, preprocessText, correctTypos, buildIdf, vectorize, cosineSimilarity |
-| `similarity.js` | Inference Engine (utilitas) | Jaro Similarity, Jaro-Winkler, normalizeQuery |
+| `similarity.js` | Inference Engine (utilitas) | Jaro-Winkler (hanya untuk Typo Correction), normalizeQuery |
 | `knowledge_base.js` | Knowledge Base + Rule Engine | Pola red-flag + aturan forward chaining (R0–R8, dapat dikembangkan) |
 | `database.js` | Knowledge Base (data) | Koneksi dan inisialisasi SQLite |
 | `fetcher.js` | Knowledge Acquisition | Download hadits dari API publik ke SQLite |

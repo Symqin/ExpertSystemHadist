@@ -52,8 +52,7 @@ router.post('/', async (req, res) => {
     //     Ekstrak matan agar urutan sanad tidak mengganggu bobot TF-IDF.
     const queryMatan = extractMatan(text);
     const rawQueryTokens = preprocessText(queryMatan);
-    const correctedTokens = correctTypos(rawQueryTokens, vocabulary);
-    const queryTokens = correctedTokens;
+    const queryTokens = correctTypos(rawQueryTokens, vocabulary);
 
     if (queryTokens.length === 0) {
       return res.json({
