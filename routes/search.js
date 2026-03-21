@@ -1,18 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const { getDbConnection } = require('../database');
-const { normalizeQuery, jaroWinklerSimilarity } = require('../similarity');
+const { normalizeQuery } = require('../similarity');
 const {
   extractMatan,
   preprocessText,
-  addNgrams,
   correctTypos,
   buildIdf,
   vectorize,
   cosineSimilarity,
+  queryCoverageSimilarity,
   getStatus,
 } = require('../nlp');
-const { evaluateExpertLayer } = require('../knowledge_base');
+const { evaluateExpertLayer, evaluateInteractiveQuestionnaire } = require('../knowledge_base');
 
 router.post('/', async (req, res) => {
   try {
@@ -40,12 +40,11 @@ router.post('/', async (req, res) => {
     // 2a. Tokenisasi corpus: ekstrak matan terlebih dahulu, lalu preprocess
     //     (gunakan h.translation agar extractMatan dapat mendeteksi tanda baca "berkata:")
     const corpusMatan = hadiths.map(h => extractMatan(h.translation));
-    const corpusBaseTokens = corpusMatan.map(matan => preprocessText(matan));
-    const corpusTokens = corpusBaseTokens.map(tokens => addNgrams(tokens, 2, 3));
+    const corpusTokens = corpusMatan.map(matan => preprocessText(matan));
 
     // 2b. Bangun vocabulary dari corpus untuk typo correction
     const vocabulary = new Set();
-    for (const tokens of corpusBaseTokens) {
+    for (const tokens of corpusTokens) {
       for (const token of tokens) vocabulary.add(token);
     }
 
@@ -54,7 +53,7 @@ router.post('/', async (req, res) => {
     const queryMatan = extractMatan(text);
     const rawQueryTokens = preprocessText(queryMatan);
     const correctedTokens = correctTypos(rawQueryTokens, vocabulary);
-    const queryTokens = addNgrams(correctedTokens, 2, 3);
+    const queryTokens = correctedTokens;
 
     if (queryTokens.length === 0) {
       return res.json({
@@ -77,12 +76,12 @@ router.post('/', async (req, res) => {
       const h = hadiths[i];
       const docVector = vectorize(corpusTokens[i], idf);
       const cosineScore = cosineSimilarity(queryVector, docVector);
+      const overlapScore = queryCoverageSimilarity(queryVector, docVector);
       const normalizedDocMatan = normalizeQuery(corpusMatan[i]);
-      const jwScore = normalizedQueryMatan && normalizedDocMatan
-        ? jaroWinklerSimilarity(normalizedQueryMatan, normalizedDocMatan)
-        : 0;
 
-      let score = (cosineScore * 0.75) + (jwScore * 0.25);
+      // Gabungkan skor Cosine murni (global document match) dan Overlap murni (substring/partial match)
+      // Memberi bobot lebih dominan pada Overlap (60%) agar user tidak dihukum bila matannya sangat panjang.
+      let score = (cosineScore * 0.4) + (overlapScore * 0.6);
 
       if (normalizedQueryMatan && normalizedDocMatan) {
         if (normalizedDocMatan.includes(normalizedQueryMatan) || normalizedQueryMatan.includes(normalizedDocMatan)) {
@@ -141,6 +140,36 @@ router.post('/', async (req, res) => {
 
   } catch (error) {
     console.error('Search POST error:', error);
+    res.status(500).json({ success: false, error: 'Internal Server Error' });
+  }
+});
+
+// ── ENDPOINT BARU: Evaluasi Kuesioner Interaktif (M1 - M5) ────────────
+router.post('/evaluate-questionnaire', (req, res) => {
+  try {
+    const { m1, m2, m3, m4, m5 } = req.body;
+
+    // Memastikan data yang dikirim adalah boolean
+    const answers = {
+      m1: Boolean(m1),
+      m2: Boolean(m2),
+      m3: Boolean(m3),
+      m4: Boolean(m4),
+      m5: Boolean(m5)
+    };
+
+    // Jalankan Rule R8 - R12
+    const expertResult = evaluateInteractiveQuestionnaire(answers);
+
+    res.json({
+      success: true,
+      expertStatus: expertResult.expertStatus,
+      expertLabel: expertResult.expertLabel,
+      expertReason: expertResult.reason,
+      expertRulesFired: expertResult.rulesFired
+    });
+  } catch (error) {
+    console.error('Evaluate Questionnaire POST error:', error);
     res.status(500).json({ success: false, error: 'Internal Server Error' });
   }
 });

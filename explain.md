@@ -12,7 +12,7 @@ Dokumen ini menjelaskan isi file utama, kegunaan, serta alur kerja algoritma dar
 | routes/search.js | **Inference Engine (orkestrator)** | Pipeline utama: memanggil NLP hybrid → lalu memanggil lapisan pakar forward chaining. |
 | nlp.js | **Inference Engine (lapisan NLP)** | Fungsi: extractMatan, preprocessText, correctTypos, buildIdf, vectorize, cosineSimilarity, getStatus. |
 | similarity.js | **Inference Engine (utilitas)** | Jaro Similarity, Jaro-Winkler Similarity, normalizeQuery. |
-| knowledge_base.js | **Knowledge Base + Rule Engine** | Basis pengetahuan berupa pola red-flag + aturan inferensi forward chaining (R0–R6). |
+| knowledge_base.js | **Knowledge Base + Rule Engine** | Basis pengetahuan berupa pola red-flag + aturan inferensi forward chaining (R0 dst., dapat dikembangkan). |
 | database.js | **Knowledge Base (data)** | Koneksi dan inisialisasi database SQLite berisi hadits shahih rujukan. |
 | fetcher.js | **Knowledge Acquisition** | Mengunduh hadits dari API publik, normalisasi, dan simpan ke SQLite. |
 | public/ | **User Interface (frontend)** | UI web: input teks hadits, tampilan skor NLP, hasil sistem pakar, dan alasan keputusan. |
@@ -28,22 +28,20 @@ Alur di endpoint `/search` memakai **dua lapisan inferensi**: NLP hybrid + lapis
 1. Ambil seluruh hadits dari database SQLite.
 2. Ekstrak **matan** dari setiap hadits (menghapus sanad) memakai `extractMatan`.
 3. Preprocess setiap matan:
-   - Case folding (lowercase)
-   - Hapus angka dan tanda baca
-   - Hapus stopwords (Bahasa Indonesia + transliterasi Arab)
-   - Tokenisasi
-   - Tambah n-gram (bi-gram/tri-gram) untuk menjaga konteks frasa
+  - Case folding (lowercase)
+  - Hapus angka dan tanda baca
+  - Hapus stopwords (Bahasa Indonesia + transliterasi Arab)
+  - Tokenisasi (hanya unigram/kata tunggal, tanpa n-gram)
 4. Bangun vocabulary dari seluruh token corpus.
 5. Proses query user:
-   - `extractMatan` agar fokus pada isi matan saja
-   - `preprocessText` menghasilkan token bersih
-   - `correctTypos` memperbaiki typo per kata memakai Jaro-Winkler (threshold ≥ 0.88)
-   - Tambah n-gram agar frasa penting ikut terbaca
+  - `extractMatan` agar fokus pada isi matan saja
+  - `preprocessText` menghasilkan token bersih
+  - `correctTypos` memperbaiki typo per kata memakai Jaro-Winkler (threshold ≥ 0.88)
 6. Hitung IDF dari seluruh corpus (`buildIdf`).
 7. Buat vektor TF-IDF untuk query dan setiap dokumen (`vectorize`).
-8. Hitung **Cosine Similarity** antara vektor query dan vektor dokumen.
-9. Hitung **Jaro-Winkler Similarity** di level matan yang sudah dinormalisasi.
-10. **Skor akhir** = kombinasi tertimbang: `(Cosine × 0.75) + (Jaro-Winkler × 0.25)`.
+8. Hitung **Cosine Similarity** antara vektor query dan vektor dokumen (Pencocokan Global).
+9. Hitung **Overlap (Coverage) Similarity** untuk mengecek seberapa persen token query tertutupi oleh dokumen dokumen tanpa menghukum panjang dokumen (Pencocokan Substring parsial).
+10. **Skor akhir** = kombinasi tertimbang: `(Cosine × 0.40) + (Overlap × 0.60)`.
 11. **Substring Boost**: Jika matan query merupakan substring matan dokumen (atau sebaliknya), skor diboost minimal 0.95.
 12. Urutkan hasil descending, ambil top 5.
 13. Tentukan tier NLP: `found` (>0.80), `review` (≥0.50), atau `notfound` (<0.50).
@@ -90,12 +88,14 @@ Fakta awal yang menjadi input forward chaining dikemas dalam objek `ctx`:
                        ▼
 ┌──────────────────────────────────────────────────┐
 │  R1: EXAGGERATED_REWARD — Cek pola janji pahala  │
-│      berlebihan (11 pola). Jika cocok → MAUDHU   │
+│      berlebihan. Jika cocok → KUAT_INDIKASI_MAUDHU│
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
 │  R2: BID'AH_PRACTICE — Cek pola amalan bid'ah   │
-│      kontroversial (6 pola). Jika cocok → MAUDHU │
+│      /amalan khusus kontroversial. Jika cocok    │
+│      → LEMAH_CENDERUNG_TIDAK_SHOHIH (perlu       │
+│      tahqiq ulama)                               │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
@@ -117,33 +117,74 @@ Fakta awal yang menjadi input forward chaining dikemas dalam objek `ctx`:
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
-│  R6: MODERN_LANGUAGE — Cek pola bahasa/istilah   │
-│      modern yang anakronistik, tidak mungkin ada  │
-│      di era kenabian (30+ pola). Jika cocok       │
-│      → MAUDHU                                    │
+│  R6: POPULAR_QUOTES — Cek pepatah/hoaks medis    │
+│      populer yang sering diklaim hadits. Jika    │
+│      teks tidak ditemukan di database →          │
+│      LA_ASLA_LAHU, jika hanya kemiripan sedang   │
+│      → PERLU_TAHQIQ_LANJUT.                      │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
-│  KESIMPULAN AKHIR:                               │
+│  R7: MODERN_LANGUAGE — Cek pola bahasa/istilah   │
+│      modern di matan (bukan komentar). Jika      │
+│      cocok → KUAT_INDIKASI_MAUDHU               │
+└──────────────────────┬───────────────────────────┘
+                       ▼
+┌──────────────────────────────────────────────────┐
+│  R8: REGEX_RED_FLAGS — Cek pola redaksi khusus   │
+│      via regex. Jika tidak ada padanan di        │
+│      database → KUAT_INDIKASI_MAUDHU, jika ada   │
+│      kemiripan → LEMAH_CENDERUNG_TIDAK_SHOHIH.   │
+└──────────────────────┬───────────────────────────┘
+                       ▼
+┌──────────────────────────────────────────────────┐
+│  KESIMPULAN AWAL OTOMATIS                        │
+└──────────────────────┬───────────────────────────┘
+                       ▼
+┌──────────────────────────────────────────────────┐
+│  KUESIONER PAKAR MANUAL (Diaktifkan pada Frontend│
+│  jika skor < 0.60 dan TIDAK ada Red-Flag dari R1-R8)│
+│  M1: Janji/Ancaman berlebihan (Al-Mujazafah)     │
+│  M2: Penentuan spesifik Kiamat/Ghaib             │
+│  M3: Politis / Celaan suku spesifik              │
+│  M4: Bertentangan Akal Sehat / Fakta Empiris     │
+│  M5: Bahasa Pasaran / Ancaman Berantai (Rikakah) │
+└──────────────────────┬───────────────────────────┘
+                       ▼
+┌──────────────────────────────────────────────────┐
+│  R8(m): IF M5="YA" → HOAKS_BUKAN_HADIS           │
+│  R9   : IF M1="YA" → KUAT_INDIKASI_MAUDHU        │
+│  R10  : IF M2="YA" OR M4="YA" → MAUDHU           │
+│  R11  : IF M3="YA" → INDIKASI_MAUDHU_POLITIS     │
+│  R12  : IF All="TIDAK" → STATUS_TIDAK_DIKENALI   │
+└──────────────────────┬───────────────────────────┘
+                       ▼
+┌──────────────────────────────────────────────────┐
+│  KESIMPULAN AKHIR (Pusat Analisis):              │
 │  - expertStatus (kode status)                    │
 │  - expertLabel (label deskriptif)                │
-│  - confidenceBand (strong / medium / weak)       │
 │  - reasons[] (daftar alasan keputusan)           │
-│  - rulesFired[] (daftar aturan yang terpicu)     │
 └──────────────────────────────────────────────────┘
 ```
 
-#### Tabel Lengkap Aturan Sistem Pakar (R0–R6)
+#### Tabel Lengkap Aturan Sistem Pakar (ringkas)
 
-| Kode | Nama Aturan | Kondisi IF (Premis) | Aksi THEN (Kesimpulan) | Jumlah Pola |
-|------|-------------|---------------------|------------------------|-------------|
-| R0 | BASE_RULE | Tier NLP = found / review / notfound | Status awal: MAQBUL / TAHQIQ / SYUBHAT | — |
-| R1 | EXAGGERATED_REWARD | Matan mengandung pola janji pahala berlebihan | KUAT_INDIKASI_MAUDHU (confidence: strong) | 11 pola |
-| R2 | BID'AH_PRACTICE | Matan menyebut amalan bid'ah kontroversial | KUAT_INDIKASI_MAUDHU (confidence: strong) | 6 pola |
-| R3 | OVER_THREAT | Matan mengandung ancaman tidak proporsional DAN tier = notfound | LEMAH_CENDERUNG_TIDAK_SHAHIH (confidence: medium) | 6 pola |
-| R4 | ADJUST_CONFIDENCE | Tier = found TAPI skor < 0.85 | Turunkan confidence band dari strong → medium | — |
-| R5 | QURAN_CONTRADICTION | Matan bertentangan dengan prinsip Al-Quran yang qath'i | KUAT_INDIKASI_MAUDHU (confidence: strong) | 16 pola |
-| R6 | MODERN_LANGUAGE | Matan mengandung istilah/konsep modern (anakronistik) | KUAT_INDIKASI_MAUDHU (confidence: strong) | 30+ pola |
+| Kode | Nama Aturan | Kondisi IF (Premis) | Aksi THEN (Kesimpulan) | Catatan |
+|------|-------------|---------------------|------------------------|---------|
+| R0 | BASE_RULE | Tier NLP = found / review / notfound | Status awal: MAQBUL / TAHQIQ / SYUBHAT | Basis dari skor NLP |
+| R1 | EXAGGERATED_REWARD | Matan mengandung pola janji pahala berlebihan | KUAT_INDIKASI_MAUDHU (confidence: strong) | Ciri khas maudhu |
+| R2 | BID'AH_PRACTICE | Matan menyebut amalan bid'ah | LEMAH_CENDERUNG_TIDAK_SHOHIH (confidence: medium) | Tidak langsung memvonis maudhu |
+| R3 | OVER_THREAT | Matan mengandung ancaman tidak proporsional DAN tier = notfound | LEMAH_CENDERUNG_TIDAK_SHOHIH (confidence: medium) | Ancaman berlebihan |
+| R4 | ADJUST_CONFIDENCE | Tier = found TAPI skor < 0.85 | Turunkan confidence band | Menjaga kehati-hatian |
+| R5 | QURAN_CONTRADICTION | Matan bertentangan dengan prinsip Al-Quran yang qath'i | KUAT_INDIKASI_MAUDHU (confidence: strong) | Hadits shahih tidak bertentangan dengan Qur'an |
+| R6 | POPULAR_QUOTES | Teks mirip pepatah/hoaks medis populer | LA_ASLA_LAHU / PERLU_TAHQIQ_LANJUT |  |
+| R7 | MODERN_LANGUAGE | Matan mengandung istilah modern (anakronistik) | KUAT_INDIKASI_MAUDHU (confidence: strong) | Hanya diterapkan pada matan murni |
+| R8 | REGEX_RED_FLAGS | Pola redaksi khusus via regex | KUAT_INDIKASI_MAUDHU / LEMAH_CENDERUNG_TIDAK_SHOHIH | |
+| R8(m)| RIKAKAH_AL_LAFZ | M5="YA" (Bahasa sangat rancu / pesan berantai) | HOAKS_BUKAN_HADIS | Kuesioner Manual Frontend |
+| R9 | AL_MUJAZAFAH | M1="YA" (Janji pahala/ancaman fantastis berlebihan) | KUAT_INDIKASI_MAUDHU | Kuesioner Manual Frontend |
+| R10 | CONTRADICTION | M2="YA" atau M4="YA" (Hal ghaib penentuan waktu/Fakta empiris) | KUAT_INDIKASI_MAUDHU | Kuesioner Manual Frontend |
+| R11 | FANATIC_POLITICAL | M3="YA" (Pujian pujian/celaan rasis) | INDIKASI_MAUDHU_POLITIS | Kuesioner Manual Frontend |
+| R12 | UNKNOWN_MANUAL | Semua M="TIDAK" | STATUS_TIDAK_DIKENALI | Kuesioner Manual Frontend |
 
 #### Detail Aturan R5: Deteksi Kontradiksi dengan Al-Quran
 
@@ -180,27 +221,27 @@ Kategori pola yang dideteksi:
 ## 3) Penjelasan Fungsi Algoritma
 
 ### Jaro-Winkler (Token Typo Correction)
-- **Tujuan**: Koreksi kata yang salah ketik.
-- **Cara kerja**: Membandingkan token query dengan vocabulary corpus, pilih skor tertinggi di atas threshold (≥ 0.88).
-- Dipakai per kata, bukan per kalimat, karena urutan kata hadits bisa berbeda.
+- **Tujuan**: Koreksi kata yang salah ketik pada tahap Pra-Pemrosesan.
+- **Cara kerja**: Membandingkan token query dengan vocabulary corpus, pilih skor tertinggi di atas threshold (≥ 0.88). Karena dirancang dengan sistem *Prefix Bonus*, Jaro-Winkler sangat brilian mendeteksi *typo* manusia.
 
 ### TF-IDF (Pemberi Bobot Kata Kunci)
 - Mengubah teks menjadi vektor angka berbobot.
 - **TF (Term Frequency)** menilai seberapa sering kata muncul dalam dokumen.
 - **IDF (Inverse Document Frequency)** menurunkan bobot kata yang terlalu umum dan menaikkan kata yang unik.
 
-### Cosine Similarity (Pengukur Kemiripan Semantik)
-- Mengukur sudut antara vektor query dan vektor dokumen.
-- Nilai mendekati 1 berarti distribusi kata-kata penting sangat mirip meski urutan berbeda.
-- Bersifat **order-independent** (tidak bergantung pada urutan kata).
+### Cosine Similarity (Pengukur Kemiripan Semantik Global)
+- Mengukur sudut antara vektor query dan vektor dokumen. Digunakan untuk pencocokan 1-to-1 dokumen lengkap (*Global Alignment*).
+- Cenderung menghukum (memberi penalti poin) dokumen target yang terlalu panjang jika query cukup pendek.
 
-### Jaro-Winkler (Matan-level)
-- Memberi sinyal tambahan untuk kemiripan kutipan yang sangat dekat secara urutan karakter.
-- Digabung dengan Cosine (bobot 25%) untuk meningkatkan presisi pada kutipan yang mirip sekali.
+### Overlap / Coverage Similarity (Pengukur Persentase Substring)
+- Dibuat khusus (Custom) untuk menoleransi matan acuan yang panjang.
+- Hanya mengecek: "Berapa banyak dari Term input user yang termuat di dalam Term dokumen?".
+- Menghindari turunnya skor di The Cosine Similarity akibat perbedaan rasio ekstrim panjang kalimat antara kata kunci pengguna dan hadits aslinya.
+- Pembobotan 60% Overlap dan 40% Cosine memberikan hasil optimal untuk memfasilitasi pencarian sub-kalimat/potongan *(Substring Match)*.
 
-### N-gram (Frasa/Konteks)
-- Menambahkan token gabungan seperti "minum_kopi" agar frasa tetap dikenali sebagai satu unit.
-- Membantu kasus di mana kata tunggal kehilangan konteks jika dipisah-pisah.
+### Representasi Token
+- Saat ini sistem hanya memakai token kata tunggal (unigram) setelah preprocessing dan koreksi typo.
+- Informasi konteks frasa ditangkap lewat kombinasi distribusi kata (TF-IDF) dan gabungan skor Cosine + Jaro-Winkler, tanpa perlu membentuk n-gram eksplisit.
 
 ### Substring Boost
 - Jika query matan ada di dalam matan dokumen (atau sebaliknya), skor ditingkatkan ke minimal 0.95.
@@ -220,11 +261,12 @@ Kategori pola yang dideteksi:
 ### Status Sistem Pakar (Lapisan 2)
 | Status | Label | Artinya |
 |--------|-------|---------|
-| INSYAALLAH_MAQBUL | InsyaAllah Maqbul | Ditemukan dalam sumber rujukan, tidak ada red flag |
-| PERLU_TAHQIQ_LANJUT | Perlu Tahqiq Lanjut | Kemiripan sedang, butuh verifikasi ulama |
+| INSYAALLAH_MAQBUL | InsyaAllah Maqbul | Ditemukan dalam sumber rujukan, tidak ada red flag signifikan |
+| PERLU_TAHQIQ_LANJUT | Perlu Tahqiq Lanjut | Kemiripan sedang/ada indikasi populer, butuh verifikasi ulama |
 | SYUBHAT_TIDAK_DITEMUKAN | Syubhat | Tidak ditemukan, patut dicurigai |
-| LEMAH_CENDERUNG_TIDAK_SHAHIH | Lemah | Mengandung sinyal kelemahan |
-| KUAT_INDIKASI_MAUDHU | Kuat Indikasi Maudhu | Red flag terpicu: janji berlebihan, kontradiksi Quran, bahasa modern, atau amalan bid'ah |
+| LEMAH_CENDERUNG_TIDAK_SHOHIH | Lemah | Mengandung sinyal kelemahan atau riwayat bermasalah |
+| LA_ASLA_LAHU | La Asla Lahu | Teks sangat mirip pepatah/mitos populer yang tidak dikenal sebagai hadits dalam sumber rujukan |
+| KUAT_INDIKASI_MAUDHU | Kuat Indikasi Maudhu | Red flag kuat terpicu (pahala berlebihan, kontradiksi Qur'an, bahasa modern, ancaman/hoaks spesifik) |
 
 ---
 
@@ -237,8 +279,8 @@ Input teks user
   → Preprocess (lowercase, hapus tanda baca, stopwords)
   → Typo correction (Jaro-Winkler per token)
   → TF-IDF vectorization
-  → Cosine Similarity (bobot 75%)
-  → Jaro-Winkler matan (bobot 25%)
+  → Cosine Similarity (bobot 40%)
+  → Overlap Coverage Similarity (bobot 60%)
   → Substring Boost
   → Ranking + Tier NLP (found / review / notfound)
   → Forward Chaining Sistem Pakar:
@@ -249,6 +291,13 @@ Input teks user
       R4: Adjust confidence jika skor borderline
       R5: Cek kontradiksi dengan Al-Quran
       R6: Cek bahasa/istilah modern
+      R8: Tepat Pola Spesifik
+  → Kesimpulan Awal Otomatis
+  → JIKA skor < 0.60 & Tiada RedFlag Otomatis:
+      Kuesioner Pakar Manual Berbasis Observasi
+      M1-M5: Kriteria Kritik Teks Manual (Al-Mujazafah, Rikakah, dsb)
+      Memicu Aturan R9-R12.
+  → Kesimpulan Akhir Gabungan
   → Kesimpulan: status pakar + confidence + alasan + rules fired
 ```
 

@@ -1,11 +1,11 @@
 # Hadith Matan Checker — Sistem Pakar Deteksi Hadits Palsu
 
-Aplikasi web **sistem pakar** untuk mendeteksi indikasi hadits palsu (maudhu) berdasarkan analisis **matan** (isi teks hadits). Dibangun dengan Node.js, menggunakan pendekatan **NLP Hybrid** (TF-IDF + Cosine Similarity + Jaro-Winkler) dan **Forward Chaining Expert System** dengan 7 aturan inferensi.
+Aplikasi web **sistem pakar** untuk mendeteksi indikasi hadits palsu (maudhu) berdasarkan analisis **matan** (isi teks hadits). Dibangun dengan Node.js, menggunakan pendekatan **NLP Hybrid** (TF-IDF + Cosine Similarity + Jaro-Winkler) dan **Forward Chaining Expert System** dengan beberapa aturan inferensi terstruktur.
 
 ## 🚀 Fitur Utama
 
-- **NLP Hybrid Engine** — Kombinasi TF-IDF, Cosine Similarity (75%), dan Jaro-Winkler (25%) untuk pencarian kemiripan matan.
-- **Forward Chaining Expert System** — 7 aturan inferensi (R0–R6) yang mengevaluasi matan secara berurutan dari fakta menuju kesimpulan.
+- **NLP Hybrid Engine** — Kombinasi TF-IDF, Cosine Similarity (40%), dan Overlap/Coverage Score (60%) untuk pencarian kemiripan parsial (Substring). Jaro-Winkler khusus digunakan untuk koreksi ejaan level kata (typo correction).
+- **Forward Chaining Expert System** — serangkaian aturan inferensi (R0, R1, ...) yang mengevaluasi matan secara berurutan dari fakta menuju kesimpulan. Aturan baru bisa ditambah tanpa mengubah arsitektur.
 - **Deteksi Red Flag** — Mengenali pola janji pahala berlebihan, amalan bid'ah, ancaman tidak proporsional, kontradiksi Al-Quran, dan bahasa modern.
 - **Database 30.000+ Hadits** — Koleksi hadits shahih dari API publik sebagai rujukan.
 - **Top 5 Ranking** — Menampilkan 5 hadits paling mirip beserta skor dan status.
@@ -17,31 +17,47 @@ Input Teks User
   → Extract Matan (pisahkan dari sanad)
   → Preprocess (lowercase, hapus tanda baca, stopwords)
   → Typo Correction (Jaro-Winkler per token)
-  → TF-IDF Vectorization + Cosine Similarity
-  → Jaro-Winkler Matan-level + Substring Boost
+  → TF-IDF Vectorization
+  → Cosine Similarity (Global Match) + Overlap Score (Substring Match)
   → Ranking + Tier NLP (found / review / notfound)
   → Forward Chaining Sistem Pakar:
       R0: Base Rule (tier NLP → status awal)
-      R1: Deteksi pola pahala berlebihan → MAUDHU
-      R2: Deteksi amalan bid'ah kontroversial → MAUDHU
+      R1: Deteksi pola pahala berlebihan → KUAT_INDIKASI_MAUDHU
+      R2: Deteksi amalan bid'ah/khusus kontroversial → LEMAH / PERLU TAHQIQ
       R3: Deteksi ancaman tidak proporsional → LEMAH
       R4: Adjust confidence jika skor borderline
-      R5: Deteksi kontradiksi dengan Al-Quran → MAUDHU
-      R6: Deteksi bahasa/istilah modern → MAUDHU
-  → Kesimpulan: status pakar + confidence + alasan + rules fired
+      R5: Deteksi kontradiksi dengan Al-Quran → KUAT_INDIKASI_MAUDHU
+      R6: Deteksi pepatah/hoaks medis populer → LA_ASLA_LAHU / PERLU TAHQIQ
+      R7: Deteksi bahasa/istilah modern → KUAT_INDIKASI_MAUDHU
+      R8: Deteksi pola redaksi via regex → LEMAH / KUAT_INDIKASI_MAUDHU
+  → Kesimpulan Otomatis (Jika status = unknown/syubhat & skor < 0.60):
+      Pertanyaan Observasi M1 - M5 (Kuesioner Manual)
+      R8: M5="YA" (Rikakah Lafadz) → HOAKS / BUKAN HADIS
+      R9: M1="YA" (Al-Mujazafah) → KUAT_INDIKASI_MAUDHU
+      R10: M2="YA" atau M4="YA" (Ghaib/Mukhalafah) → KUAT_INDIKASI_MAUDHU
+      R11: M3="YA" (Politis) → INDIKASI_MAUDHU_POLITIS
+      R12: Semua="TIDAK" → STATUS_TIDAK_DIKENALI
+  → Kesimpulan Akhir: status pakar + confidence + alasan + rules fired
 ```
 
-### Tabel Aturan Forward Chaining (R0–R6)
+### Tabel Aturan Forward Chaining (ringkas)
 
 | Kode | Nama Aturan | Kondisi (IF) | Kesimpulan (THEN) |
-|------|-------------|-------------|-------------------|
+|------|-------------|--------------|-------------------|
 | R0 | BASE_RULE | Tier NLP = found / review / notfound | Status awal: MAQBUL / TAHQIQ / SYUBHAT |
-| R1 | EXAGGERATED_REWARD | Pola janji pahala berlebihan (11 pola) | KUAT_INDIKASI_MAUDHU |
-| R2 | BID'AH_PRACTICE | Pola amalan bid'ah kontroversial (6 pola) | KUAT_INDIKASI_MAUDHU |
-| R3 | OVER_THREAT | Ancaman tidak proporsional + tier notfound | LEMAH_TIDAK_SHAHIH |
+| R1 | EXAGGERATED_REWARD | Pola janji pahala sangat berlebihan | KUAT_INDIKASI_MAUDHU |
+| R2 | BID'AH_PRACTICE | Amalan khusus bid'ah/khusus kontroversial | LEMAH_CENDERUNG_TIDAK_SHOHIH (confidence medium) |
+| R3 | OVER_THREAT | Ancaman tidak proporsional + tier notfound | LEMAH_CENDERUNG_TIDAK_SHOHIH |
 | R4 | ADJUST_CONFIDENCE | Tier found tapi skor < 0.85 | Turunkan confidence band |
-| R5 | QURAN_CONTRADICTION | Bertentangan dengan prinsip Al-Quran (16 pola) | KUAT_INDIKASI_MAUDHU |
-| R6 | MODERN_LANGUAGE | Bahasa/istilah modern anakronistik (30+ pola) | KUAT_INDIKASI_MAUDHU |
+| R5 | QURAN_CONTRADICTION | Bertentangan dengan prinsip Al-Quran | KUAT_INDIKASI_MAUDHU |
+| R6 | POPULAR_QUOTES | Mirip pepatah/hoaks medis populer | LA_ASLA_LAHU (jika notfound) / PERLU_TAHQIQ (jika review) |
+| R7 | MODERN_LANGUAGE | Istilah/bahasa modern di matan | KUAT_INDIKASI_MAUDHU |
+| R8 | REGEX_RED_FLAGS | Pola redaksi khas via regex | KUAT_INDIKASI_MAUDHU / LEMAH |
+| R8(m) | RIKAKAH_AL_LAFZ | M5="YA" (Bahasa Sangat Rancu) | HOAKS_BUKAN_HADIS |
+| R9 | AL_MUJAZAFAH | M1="YA" (Pahala/Ancaman Fantastis) | KUAT_INDIKASI_MAUDHU |
+| R10 | CONTRADICTION | M2="YA" atau M4="YA" (Ghaib / Empiris) | KUAT_INDIKASI_MAUDHU |
+| R11 | FANATIC_POLITICAL| M3="YA" (Kesan pujian/celaan rasis terharap kelompok) | INDIKASI_MAUDHU_POLITIS |
+| R12 | UNKNOWN_MANUAL | Semua M="TIDAK" | STATUS_TIDAK_DIKENALI |
 
 ## 📁 Struktur Proyek
 
@@ -51,7 +67,7 @@ Input Teks User
 | `routes/search.js` | Inference Engine | Pipeline utama: NLP hybrid → forward chaining |
 | `nlp.js` | Inference Engine (NLP) | extractMatan, preprocessText, correctTypos, buildIdf, vectorize, cosineSimilarity |
 | `similarity.js` | Inference Engine (utilitas) | Jaro Similarity, Jaro-Winkler, normalizeQuery |
-| `knowledge_base.js` | Knowledge Base + Rule Engine | Pola red-flag + aturan forward chaining R0–R6 |
+| `knowledge_base.js` | Knowledge Base + Rule Engine | Pola red-flag + aturan forward chaining (R0–R8, dapat dikembangkan) |
 | `database.js` | Knowledge Base (data) | Koneksi dan inisialisasi SQLite |
 | `fetcher.js` | Knowledge Acquisition | Download hadits dari API publik ke SQLite |
 | `public/` | User Interface (frontend) | UI web: input, skor NLP, hasil pakar, alasan keputusan |
@@ -106,8 +122,9 @@ node fetcher.js
 | INSYAALLAH_MAQBUL | Ditemukan dalam sumber rujukan, tidak ada red flag |
 | PERLU_TAHQIQ_LANJUT | Kemiripan sedang, butuh verifikasi ulama |
 | SYUBHAT | Tidak ditemukan, patut dicurigai |
-| LEMAH | Mengandung sinyal kelemahan |
-| KUAT_INDIKASI_MAUDHU | Red flag terpicu (pahala berlebihan, kontradiksi Quran, bahasa modern, atau bid'ah) |
+| LEMAH_CENDERUNG_TIDAK_SHOHIH | Mengandung sinyal kelemahan atau riwayat bermasalah |
+| LA_ASLA_LAHU | Teks mirip pepatah/mitos populer, tidak dikenal sebagai hadits dalam sumber rujukan |
+| KUAT_INDIKASI_MAUDHU | Red flag kuat terpicu (pahala berlebihan, kontradiksi Quran, bahasa modern, ancaman/hoaks spesifik) |
 
 ## ⚠️ Disclaimer
 

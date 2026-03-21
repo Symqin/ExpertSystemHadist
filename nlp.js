@@ -90,7 +90,8 @@ function preprocessText(text) {
   if (!text) return [];
   return text
     .toLowerCase()
-    .replace(/[^\w\s]/g, ' ')   // Hapus tanda baca
+    .replace(/['’]/g, '')       // Hapus tanda kutip tunggal agar qur'an -> quran
+    .replace(/[^\w\s]/g, ' ')   // Hapus tanda baca lainnya
     .replace(/\d+/g, ' ')       // Hapus angka
     .replace(/\s+/g, ' ')       // Normalkan spasi
     .trim()
@@ -98,26 +99,6 @@ function preprocessText(text) {
     .filter(token => token.length > 1 && !STOPWORDS.has(token));
 }
 
-/**
- * Tambahkan n-gram (bi-gram/tri-gram) untuk menjaga konteks frasa.
- * @param {string[]} tokens
- * @param {number} minN
- * @param {number} maxN
- * @returns {string[]} Token yang sudah ditambah n-gram
- */
-function addNgrams(tokens, minN = 2, maxN = 3) {
-  if (!Array.isArray(tokens) || tokens.length === 0) return [];
-  const enriched = tokens.slice();
-
-  for (let n = minN; n <= maxN; n++) {
-    for (let i = 0; i <= tokens.length - n; i++) {
-      const gram = tokens.slice(i, i + n).join('_');
-      enriched.push(gram);
-    }
-  }
-
-  return enriched;
-}
 
 /**
  * Koreksi typo di level token menggunakan Jaro-Winkler.
@@ -229,6 +210,29 @@ function cosineSimilarity(vec1, vec2) {
 }
 
 /**
+ * Menghitung persentase liputan (Coverage) pencarian terhadap dokumen.
+ * Tidak menghukum matan database yang jauh lebih panjang dari teks pencarian,
+ * sangat cocok untuk skenario substring / pencocokan sebagian.
+ * @param {Object} queryVec
+ * @param {Object} docVec
+ * @returns {number} Skor antara 0.0 - 1.0
+ */
+function queryCoverageSimilarity(queryVec, docVec) {
+  let overlapWeight = 0;
+  let queryTotalWeight = 0;
+
+  for (const term in queryVec) {
+    queryTotalWeight += queryVec[term];
+    if (docVec[term]) { // Jika dokumen memiliki kata yang dicari
+      overlapWeight += queryVec[term];
+    }
+  }
+
+  if (queryTotalWeight === 0) return 0;
+  return overlapWeight / queryTotalWeight;
+}
+
+/**
  * Menentukan status akhir berdasarkan skor Cosine Similarity.
  * > 0.8  → SHAHIH / Ditemukan
  * >= 0.5 → PERLU_REVIEW
@@ -249,10 +253,10 @@ function getStatus(score) {
 module.exports = {
   extractMatan,
   preprocessText,
-  addNgrams,
   correctTypos,
   buildIdf,
   vectorize,
   cosineSimilarity,
+  queryCoverageSimilarity,
   getStatus,
 };

@@ -14,42 +14,56 @@
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-800">
     <!-- Header -->
-    <header class="bg-red-800 text-white shadow-md">
-        <div class="max-w-4xl mx-auto px-4 py-6">
-            <h1 class="text-3xl font-bold">Pendeteksi Hadits Palsu (Maudhu)</h1>
-            <p class="text-sm text-red-200 mt-2">Hybrid NLP: Forward Chaining + TF-IDF &amp; Cosine Similarity berbasis Matan Indonesia</p>
+    <header class="bg-teal-700 text-white shadow-md">
+        <div class="max-w-4xl mx-auto px-4 py-8 text-center sm:text-left">
+            <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-2">Cek Validitas Hadits</h1>
+            <p class="text-teal-100 text-base sm:text-lg max-w-2xl">Hybrid NLP: Forward Chaining + TF-IDF &amp; Cosine Similarity berbasis Matan Indonesia</p>
         </div>
     </header>
 
     <main class="max-w-4xl mx-auto px-4 py-8">
         <!-- Input Section -->
-        <section class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
-            <h2 class="text-lg font-semibold mb-4 text-gray-700">Masukkan Teks Hadits</h2>
+        <section class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 mb-8">
+            <div class="mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Masukkan Teks Terjemahan Hadits</h2>
+                <p class="text-sm text-gray-500 mt-1">Ketik atau tempel matan (teks) bahasa Indonesia dari hadits yang ingin dicek.</p>
+            </div>
             <form id="searchForm">
                 <textarea 
                     id="hadithInput" 
                     rows="4" 
-                    class="w-full p-4 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors resize-none text-gray-800"
-                    placeholder="Contoh: Setiap amal perbuatan tergantung pada niat..."
+                    class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors resize-y text-gray-800 text-lg shadow-inner"
+                    placeholder="Contoh: Sebaik-baik manusia adalah yang paling bermanfaat bagi manusia lainnya..."
                     required
                 ></textarea>
-                <div class="mt-4 flex justify-end">
+                
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                    <span class="text-sm text-gray-500 font-medium">Coba contoh:</span>
+                    <button type="button" class="example-btn text-xs font-medium bg-gray-100 hover:bg-teal-100 text-teal-800 border border-gray-200 hover:border-teal-300 rounded-full px-3 py-1.5 transition-all">Tuntutlah ilmu walau ke negeri Cina</button>
+                    <button type="button" class="example-btn text-xs font-medium bg-gray-100 hover:bg-teal-100 text-teal-800 border border-gray-200 hover:border-teal-300 rounded-full px-3 py-1.5 transition-all">Kebersihan sebagian dari iman</button>
+                    <button type="button" class="example-btn text-xs font-medium bg-gray-100 hover:bg-teal-100 text-teal-800 border border-gray-200 hover:border-teal-300 rounded-full px-3 py-1.5 transition-all">Setiap amal tergantung niatnya</button>
+                </div>
+
+                <div class="mt-6 flex justify-end">
                     <button 
                         type="submit" 
                         id="searchBtn"
-                        class="bg-red-700 hover:bg-red-800 text-white font-medium py-2.5 px-6 rounded-lg transition-colors flex items-center shadow-sm"
+                        class="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white font-semibold py-3 px-8 rounded-xl transition-all flex items-center justify-center shadow-md hover:shadow-lg"
                     >
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                        Deteksi Kepalsuan
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        Cek Hadits Sekarang
                     </button>
                 </div>
             </form>
         </section>
 
         <!-- Loading -->
-        <div id="loadingIndicator" class="hidden flex flex-col items-center justify-center py-12">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
-            <span class="mt-4 text-gray-500 font-medium">Menganalisis dengan Hybrid NLP (TF-IDF + Cosine Similarity)...</span>
+        <div id="loadingIndicator" class="hidden flex flex-col items-center justify-center py-16 animate-pulse">
+            <svg class="animate-spin h-10 w-10 text-teal-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-teal-700 font-semibold tracking-wide">Sedang mencari dan menganalisa referensi di database...</span>
         </div>
 
         <!-- Error -->
@@ -57,6 +71,66 @@
             <svg class="w-6 h-6 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
             <span id="errorText"></span>
         </div>
+
+        <!-- Kuesioner Interaktif (Muncul jika skor < 0.60) -->
+        <section id="questionnaireSection" class="hidden animate-fade-in bg-white rounded-2xl shadow-sm border border-red-200 p-6 sm:p-8 mb-8">
+            <div class="mb-5">
+                <div class="flex items-center mb-2">
+                    <svg class="w-6 h-6 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    <h2 class="text-xl font-bold text-red-700">Analisis Pakar Mandiri (Skor Pencarian Rendah)</h2>
+                </div>
+                <p class="text-sm text-gray-700 mt-1">Sistem NLP kami tidak menemukan padanan teks ini di database shahih. Untuk meneliti isi matan lebih lanjut, mohon observasi kejanggalan pada teks tersebut dan jawab YA/TIDAK:</p>
+            </div>
+            
+            <form id="questionnaireForm" class="space-y-4">
+                <!-- M1 -->
+                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <p class="text-sm font-semibold text-gray-800 mb-2">M1. Apakah teks ini memuat janji pahala yang fantastis atau ancaman yang sangat mengerikan untuk amalan yang sepele?</p>
+                    <div class="flex space-x-6">
+                        <label class="flex items-center cursor-pointer"><input type="radio" name="m1" value="true" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4"> Ya</label>
+                        <label class="flex items-center cursor-pointer"><input type="radio" name="m1" value="false" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4" checked> Tidak</label>
+                    </div>
+                </div>
+                <!-- M2 -->
+                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <p class="text-sm font-semibold text-gray-800 mb-2">M2. Apakah teks ini menentukan waktu, hari, atau tahun spesifik akan terjadinya kiamat atau bencana besar?</p>
+                    <div class="flex space-x-6">
+                        <label class="flex items-center cursor-pointer"><input type="radio" name="m2" value="true" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4"> Ya</label>
+                        <label class="flex items-center cursor-pointer"><input type="radio" name="m2" value="false" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4" checked> Tidak</label>
+                    </div>
+                </div>
+                <!-- M3 -->
+                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <p class="text-sm font-semibold text-gray-800 mb-2">M3. Apakah teks ini berisi pujian atau celaan yang sangat berlebihan dan rasis terhadap suatu kabilah, suku, atau nama kota tertentu?</p>
+                    <div class="flex space-x-6">
+                        <label class="flex items-center cursor-pointer"><input type="radio" name="m3" value="true" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4"> Ya</label>
+                        <label class="flex items-center cursor-pointer"><input type="radio" name="m3" value="false" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4" checked> Tidak</label>
+                    </div>
+                </div>
+                <!-- M4 -->
+                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <p class="text-sm font-semibold text-gray-800 mb-2">M4. Apakah isi teks ini secara nyata bertentangan dengan akal sehat, fakta sejarah yang pasti, atau ilmu medis dasar?</p>
+                    <div class="flex space-x-6">
+                        <label class="flex items-center cursor-pointer"><input type="radio" name="m4" value="true" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4"> Ya</label>
+                        <label class="flex items-center cursor-pointer"><input type="radio" name="m4" value="false" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4" checked> Tidak</label>
+                    </div>
+                </div>
+                <!-- M5 -->
+                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <p class="text-sm font-semibold text-gray-800 mb-2">M5. Apakah susunan kalimatnya terasa seperti bahasa pasaran modern, mengandung ancaman berantai (misal: "sebarkan atau sial"), atau tata bahasanya sangat rancu?</p>
+                    <div class="flex space-x-6">
+                        <label class="flex items-center cursor-pointer"><input type="radio" name="m5" value="true" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4"> Ya</label>
+                        <label class="flex items-center cursor-pointer"><input type="radio" name="m5" value="false" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4" checked> Tidak</label>
+                    </div>
+                </div>
+
+                <div class="mt-5 flex justify-end">
+                    <button type="submit" id="submitQuestionnaireBtn" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 px-6 rounded-xl transition-all flex items-center shadow-md">
+                        Evaluasi Pakar Sekarang
+                    </button>
+                </div>
+            </form>
+        </section>
 
         <!-- Results Section -->
         <section id="resultsSection" class="hidden animate-fade-in">
