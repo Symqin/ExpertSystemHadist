@@ -57,7 +57,8 @@ const MODERN_LANGUAGE_PATTERNS = [
   'demokrasi', 'komunisme', 'sosialisme', 'kapitalisme', 'liberalisme', 'sekularisme',
   'partai politik', 'pemilu', 'presiden republik', 'dewan perwakilan',
   'bank sentral', 'saham', 'investasi online', 'kripto', 'bitcoin', 'pinjol',
-  'amerika', 'indonesia', 'malaysia', 'australia', 'eropa', 'rusia', 'cina', 'jepang',
+  // Catatan: 'cina' & 'jepang' TIDAK dimasukkan — keduanya dikenal sejak era Nabi ﷺ (abad ke-7 M)
+  'amerika', 'indonesia', 'malaysia', 'australia', 'eropa', 'rusia',
   'vaksin', 'virus corona', 'covid', 'bakteri', 'antibiotik', 'paracetamol',
   'operasi plastik', 'transplantasi', 'kanker', 'diabetes', 'kolesterol',
   'pesawat terbang', 'mobil', 'motor', 'kereta api', 'sepeda', 'helikopter',
@@ -131,27 +132,27 @@ const POPULAR_QUOTES_AND_MEDICAL_HOAX = [
 // [Ta'liq Al-Muhaddith]: "Aturan pendeteksian pola identik untuk teks-teks parah yang sudah di-tahdzir ulama."
 const REGEX_RED_FLAGS = [
   // Kasus 1-5: Pola Lama
-  { pattern: /tuntut(lah)?\s+ilmu\s+(walau|meski)\s+(ke|sampai)\s+negeri\s+cina/i, issue: 'Sangat Lemah / Palsu (Ulama seperti Ibn Hibban & Al-Uqaili menyatakan sanadnya batil).' },
+  { pattern: /tuntut(lah)?\s+ilmu\s+(walau|meski)\s+(ke|sampai)\s+negeri\s+cina/i, issue: 'Dha\'if / Tidak Terbukti Marfu\' (Sanadnya dinilai munqathi\' oleh Ibn Hibban & Al-Uqaili. Namun secara historis, Cina memang dikenal sebagai salah satu pusat peradaban dan ilmu pengetahuan sejak abad ke-7 M, sehingga penyebutan Cina dalam matan bukan merupakan anachronisme. Peringatan ini semata terkait status sanad, bukan isi matannya).' },
   { pattern: /kebersihan\s+(itu\s+)?sebagian\s+dari\s+iman/i, issue: 'Bukan hadits (Ini susunan kata awam. Hadits shahih berbunyi: "Ath-Thuhuru syathrul iiman" / "Bersuci itu setengah keimanan").' },
   { pattern: /tidur(nya)?\s+orang\s+(yang\s+)?berpuasa\s+adalah\s+ibadah/i, issue: 'Dha\'if Jiddan (Sangat Lemah). Ini alasan bagi para pemalas di bulan Ramadhan.' },
   { pattern: /awal(nya)?\s+ramadhan\s+(adalah\s+)?rahmat.*pertengahan(nya)?\s+ampunan/i, issue: 'Munkar/Sangat Lemah. Syaikh Al-Albani menilainya munkar. Ramadhan dari awal hingga akhir adalah rahmat & ampunan.' },
   { pattern: /barang\s*siapa\s+(membaca|menulis)\s+surat\s+(yasin|al waqiah|al mulk).*?(ribuan|\d+)\s+kali/i, issue: 'Maudhu\' (Klaim berlebihan dalam penetapan jumlah ganjaran/bacaan surat tertentu tanpa dalil).' },
-  
+
   // Kasus 6: Hadits palsu musiman menjelang bulan puasa
   { pattern: /barang\s*siapa\s+(yang\s+)?(menyampaikan|memberitahu(kan)?)\s+(berita\s+|kabar\s+)?masuk(nya)?\s+bulan\s+(ramadhan|rajab|sya'?ban).*?diharamkan\s+api\s+neraka/i, issue: 'Maudhu\' (Pesan berantai musiman menjelang bulan suci yang sering disebar di grup WA. Ini murni kebohongan/kadzib atas nama Nabi).' },
-  
+
   // Kasus 7: Nasihat tabib yang disandarkan pada Nabi
   { pattern: /makan(lah)?\s+sebelum\s+lapar.*?berhenti(lah)?\s+sebelum\s+kenyang/i, issue: 'Bukan Hadits (Sering diviralkan sebagai "Pola Makan Rasulullah", padahal ini adalah kalimat seorang tabib Arab bernama Al-Harits bin Kaladah).' },
-  
+
   // Kasus 8: Mitos perpecahan
   { pattern: /(perbedaan|ikhtilaf)(\s+pendapat)?\s+umatku\s+adalah\s+rahmat/i, issue: 'La Asla Lahu (Tidak ada asalnya). Ulama seperti As-Subki dan Al-Albani menyatakan tidak ditemukan sanadnya sama sekali dalam pangkalan hadits.' },
-  
+
   // Kasus 9: Slogan nasionalis
   { pattern: /cinta\s+(tanah\s+air|negara)\s+sebagian\s+dari\s+iman/i, issue: 'Maudhu\' (Secara sanad dikemukakan pakar hadits dari zaman dulu hingga Syaikh Al-Albani sebagai kepalsuan).' },
-  
+
   // Kasus 10: Hadits dunia akhirat
   { pattern: /bekerja(lah)?\s+untuk\s+dunia(mu)?\s+seakan.*?hidup\s+selamanya.*?(beramal|ibadah)(lah)?\s+untuk\s+akhirat/i, issue: 'Bukan Hadits Marfu\'. Ini lebih tepat disebut sebagai kata mutiara atau atsar sahabat (seperti Abdullah bin Amr), bukan sabda Nabi ﷺ.' },
-  
+
   // Kasus 11: Ancaman bohong 15 siksaan
   { pattern: /siapa\s+yang\s+meninggalkan\s+shalat.*?disiksa\s+dengan\s+(lima\s+belas|15)\s+siksaan/i, issue: 'Maudhu\' (Hadits legendaris tentang 15 siksaan bagi peninggal shalat yang sering tertulis di sampul Yasin/selebaran. Bahkan ad-Dzahabi & Ibnu Hajar sepakat ini palsu).' },
 ];
