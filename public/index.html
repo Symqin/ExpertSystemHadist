@@ -76,17 +76,17 @@
             <span id="errorText"></span>
         </div>
 
-        <!-- Kuesioner Interaktif (Muncul jika tidak ada rule otomatis terpicu) -->
-        <section id="questionnaireSection" class="hidden animate-fade-in bg-white rounded-2xl shadow-sm border border-amber-300 p-6 sm:p-8 mb-8">
+        <!-- Penelusuran Fakta Interaktif (Muncul jika tidak ada rule otomatis terpicu) -->
+        <section id="factGatheringSection" class="hidden animate-fade-in bg-white rounded-2xl shadow-sm border border-amber-300 p-6 sm:p-8 mb-8">
             <div class="mb-5">
                 <div class="flex items-center mb-2">
                     <svg class="w-6 h-6 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <h2 class="text-xl font-bold text-amber-700">Analisis Pakar Mandiri (Kuesioner Interaktif)</h2>
+                    <h2 class="text-xl font-bold text-amber-700">Analisis Pakar Mandiri (Penelusuran Fakta Interaktif)</h2>
                 </div>
                 <p class="text-sm text-gray-700 mt-1">Sistem pakar tidak menemukan red-flag otomatis pada teks ini. Untuk evaluasi lebih lanjut, mohon observasi kejanggalan pada teks dan jawab pertanyaan-pertanyaan berikut:</p>
             </div>
             
-            <form id="questionnaireForm" class="space-y-4">
+            <form id="factGatheringForm" class="space-y-4">
                 <!-- M1 -->
                 <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <p class="text-sm font-semibold text-gray-800 mb-2">M1. Apakah teks ini memuat janji pahala yang fantastis atau ancaman yang sangat mengerikan untuk amalan yang sepele?</p>
@@ -129,7 +129,7 @@
                 </div>
 
                 <div class="mt-5 flex justify-end">
-                    <button type="submit" id="submitQuestionnaireBtn" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 px-6 rounded-xl transition-all flex items-center shadow-md">
+                    <button type="submit" id="submitFactGatheringBtn" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 px-6 rounded-xl transition-all flex items-center shadow-md">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         Evaluasi Pakar Sekarang
                     </button>
@@ -148,6 +148,8 @@
         </section>
     </main>
 
+    <script src="knowledge_base.js"></script>
+    <script src="fact_evaluator.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

@@ -36,8 +36,8 @@ Sesuai dengan arsitektur standar Sistem Pakar, HadistSystemChecker memiliki 3 ko
 | Komponen | Implementasi | Keterangan |
 |----------|-------------|------------|
 | **Knowledge Base** (Basis Pengetahuan) | Array `EXAGGERATED_REWARD_PATTERNS`, `MODERN_LANGUAGE_PATTERNS`, `QURAN_CONTRADICTION_PATTERNS`, dll. di `app.js` | Berisi fakta-fakta dan pola yang menjadi dasar pengetahuan sistem |
-| **Inference Engine** (Mesin Inferensi) | Fungsi `evaluateExpertLayer()` dan `evaluateInteractiveQuestionnaire()` di `app.js` | Mekanisme Forward Chaining yang mengevaluasi aturan R1–R13 secara berurutan |
-| **User Interface** (Antarmuka Pengguna) | `index.html` + fungsi rendering di `app.js` | Input teks, tampilan hasil analisis, dan kuesioner interaktif |
+| **Inference Engine** (Mesin Inferensi) | Fungsi `evaluateExpertLayer()` dan `evaluateFactGathering()` di `app.js` | Mekanisme Forward Chaining yang mengevaluasi aturan R1–R13 secara berurutan |
+| **User Interface** (Antarmuka Pengguna) | `index.html` + fungsi rendering di `app.js` | Input teks, tampilan hasil analisis, dan penelusuran fakta interaktif |
 
 ---
 
@@ -113,8 +113,8 @@ Fungsi `evaluateExpertLayer()` mengevaluasi aturan R1–R8 secara **berurutan** 
                        ▼
 ┌──────────────────────────────────────────────────┐
 │  R8: IF (tidak ada aturan R1-R7 yang terpicu)    │
-│      THEN status = REQUIRES_MANUAL_QUESTIONNAIRE │
-│      → Lanjut ke Tahap 3 (Kuesioner M1-M5)       │
+│      THEN status = REQUIRES_FACT_GATHERING       │
+│      → Lanjut ke Tahap 3 (Penelusuran Fakta M1-M5)│
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
@@ -137,11 +137,11 @@ Fungsi `evaluateExpertLayer()` mengevaluasi aturan R1–R8 secara **berurutan** 
 | 3 | LA_ASLA_LAHU |
 | 2 | LEMAH_CENDERUNG_TIDAK_SHOHIH |
 | 1 | PERLU_TAHQIQ_LANJUT |
-| 0 | REQUIRES_MANUAL_QUESTIONNAIRE |
+| 0 | REQUIRES_FACT_GATHERING |
 
-### Tahap 3: Kuesioner Interaktif (Fallback Manual, R9–R13)
+### Tahap 3: Penelusuran Fakta Interaktif (Fallback Manual, R9–R13)
 
-Jika Tahap 2 tidak menemukan red-flag otomatis (R8 terpicu), frontend menampilkan **Kuesioner M1–M5** yang harus dijawab oleh pengguna berdasarkan observasi manual terhadap teks:
+Jika Tahap 2 tidak menemukan red-flag otomatis (R8 terpicu), frontend menampilkan **Penelusuran Fakta M1–M5** yang harus dijawab oleh pengguna berdasarkan observasi manual terhadap teks:
 
 | Kode | Pertanyaan (Premis) | Jawaban "YA" → Kesimpulan |
 |------|---------------------|--------------------------|
@@ -225,7 +225,7 @@ Sistem memiliki **11 aturan pendeteksian pola regex dinamis** untuk teks-teks pa
 | INDIKASI_MAUDHU_POLITIS | Indikasi Maudhu' (Politis) | Matan terindikasi fabrikasi politik/fanatisme golongan |
 | LEMAH_CENDERUNG_TIDAK_SHOHIH | Indikasi Lemah / Kontroversial | Mengandung sinyal kelemahan (amalan bid'ah, kontroversial) |
 | LA_ASLA_LAHU | La Asla Lahu | Teks mirip pepatah/mitos populer, bukan hadits |
-| REQUIRES_MANUAL_QUESTIONNAIRE | Butuh Evaluasi Manual | Tidak ada red-flag otomatis, perlu kuesioner M1–M5 |
+| REQUIRES_FACT_GATHERING | Butuh Evaluasi Lanjutan | Tidak ada red-flag otomatis, perlu penelusuran fakta M1–M5 |
 | STATUS_TIDAK_DIKENALI | Status Tidak Dikenali | Tidak ada indikasi palsu maupun shahih. Butuh pakar manusia |
 
 ---
@@ -239,7 +239,7 @@ Sistem memiliki **11 aturan pendeteksian pola regex dinamis** untuk teks-teks pa
 | `matchRegexFlags(text, regexFlags)` | Pencocokan regex | String + array regex → array issue yang cocok |
 | `gatherFacts(inputText)` | **Tahap 1:** Pengumpulan Fakta | String input → objek 7 fakta boolean |
 | `evaluateExpertLayer(inputText)` | **Tahap 2:** Forward Chaining R1–R8 | String input → hasil inferensi (status + alasan + rules) |
-| `evaluateInteractiveQuestionnaire(answers)` | **Tahap 3:** Kuesioner R9–R13 | Objek {m1..m5} boolean → hasil inferensi manual |
+| `evaluateFactGathering(answers)` | **Tahap 3:** Penelusuran Fakta R9–R13 | Objek {m1..m5} boolean → hasil inferensi manual |
 
 ---
 
@@ -252,7 +252,7 @@ Input teks user
   → evaluateExpertLayer() (Forward Chaining R1–R8)
       → Jika ada rule terpicu → Kesimpulan Otomatis
       → Jika tidak ada rule terpicu (R8):
-          → Tampilkan Kuesioner M1–M5
-          → evaluateInteractiveQuestionnaire() (R9–R13)
+          → Tampilkan Penelusuran Fakta M1–M5
+          → evaluateFactGathering() (R9–R13)
   → Kesimpulan Akhir: status + label + alasan + rules fired
 ```

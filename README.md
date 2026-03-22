@@ -8,7 +8,7 @@ Aplikasi web **Sistem Pakar** untuk mendeteksi indikasi hadits palsu (maudhu') b
 
 - **Forward Chaining Expert System** — Aturan inferensi (R1–R8) yang mengevaluasi matan secara berurutan dari fakta menuju kesimpulan.
 - **Fact Gathering Otomatis** — Scan teks menggunakan array regex/keyword untuk mengidentifikasi qarinah (indikator red-flag).
-- **Kuesioner Interaktif Pakar** — Pertanyaan observasi manual (M1–M5) yang aktif jika tidak ada red-flag otomatis terdeteksi, memicu aturan R9–R13.
+- **Sesi Penelusuran Fakta Pakar** — Pertanyaan observasi manual (M1–M5) yang aktif jika tidak ada red-flag otomatis terdeteksi, memicu aturan R9–R13.
 - **7 Kategori Deteksi Red-Flag** — Mengadopsi pedoman pakar (*Mustalah al-Hadith*) seperti Mubalaghah Fasidah (janji pahala fantastis), Tahwil al-Kadzib (ancaman hoaks), Mukhalafah lil-Qur'an, Tarikhiyyah al-Lafz (anakronisme), dan Shorih al-Kadzib (11 pola regex dinamis).
 
 ## 🔬 Arsitektur Sistem Pakar (Forward Chaining)
@@ -25,8 +25,8 @@ Input Teks User
       R5: IF hasBidahPractice      THEN LEMAH_CENDERUNG_TIDAK_SHOHIH (Ma Laa Asla Lahu fil Ibadah)
       R6: IF hasPopularQuotes      THEN LA_ASLA_LAHU (Masyhur 'ala Alsinatun-Naas)
       R7: IF hasRegexRedFlag       THEN KUAT_INDIKASI_MAUDHU (Shorih al-Kadzib - 11 Pola Regex)
-      R8: IF (tidak ada rule terpicu) THEN REQUIRES_MANUAL_QUESTIONNAIRE
-  → TAHAP 3: Fallback Manual (Kuesioner M1–M5)
+      R8: IF (tidak ada rule terpicu) THEN REQUIRES_FACT_GATHERING
+  → TAHAP 3: Fallback Manual (Penelusuran Fakta M1–M5)
       R9:  IF M5="YA" (Rikakah al-Lafz)     → HOAKS_BUKAN_HADIS
       R10: IF M1="YA" (Al-Mujazafah)         → KUAT_INDIKASI_MAUDHU
       R11: IF M2="YA" OR M4="YA" (Ghaib)     → KUAT_INDIKASI_MAUDHU
@@ -46,7 +46,7 @@ Input Teks User
 | R5 | BIDAH_PRACTICE | Amalan khusus tanpa asal (*Ma Laa Asla Lahu fil Ibadah*) | LEMAH_CENDERUNG_TIDAK_SHOHIH |
 | R6 | POPULAR_QUOTES | Slogan populer/nasihat tabib (*Masyhur 'ala Alsinatun-Naas*) | LA_ASLA_LAHU |
 | R7 | REGEX_RED_FLAGS | 11 Pola ekstrem spesifik via regex (*Shorih al-Kadzib*) | KUAT_INDIKASI_MAUDHU |
-| R8 | NO_RULES_FIRED | Tidak ada aturan otomatis terpicu | REQUIRES_MANUAL_QUESTIONNAIRE |
+| R8 | NO_RULES_FIRED | Tidak ada aturan otomatis terpicu | REQUIRES_FACT_GATHERING |
 | R9 | RIKAKAH_AL_LAFZ | M5="YA" (Bahasa sangat rancu / pesan berantai) | HOAKS_BUKAN_HADIS |
 | R10 | AL_MUJAZAFAH | M1="YA" (Pahala/ancaman fantastis berlebihan) | KUAT_INDIKASI_MAUDHU |
 | R11 | GHAIB_EMPIRIS | M2="YA" atau M4="YA" (Hal ghaib / fakta empiris) | KUAT_INDIKASI_MAUDHU |
@@ -86,7 +86,7 @@ start public/index.html           # Windows
 | INDIKASI_MAUDHU_POLITIS | Matan terindikasi fabrikasi politik / fanatisme golongan |
 | LEMAH_CENDERUNG_TIDAK_SHOHIH | Mengandung sinyal kelemahan (amalan bid'ah, kontroversial) |
 | LA_ASLA_LAHU | Teks mirip pepatah/mitos populer, bukan hadits |
-| REQUIRES_MANUAL_QUESTIONNAIRE | Tidak ada red-flag otomatis, butuh evaluasi manual (kuesioner M1–M5) |
+| REQUIRES_FACT_GATHERING | Tidak ada red-flag otomatis, butuh evaluasi lanjutan (penelusuran fakta M1–M5) |
 | STATUS_TIDAK_DIKENALI | Teks tidak memiliki red-flag yang dikenali. Butuh pakar manusia |
 
 ## ⚠️ Disclaimer
