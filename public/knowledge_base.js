@@ -27,23 +27,23 @@ function normalizeText(text) {
 // berupa janji pahala yang mutlak sangat besar untuk amalan yang ringan, atau ancaman neraka yang dahsyat 
 // untuk kesalahan kecil. Akal dan naql menolaknya." (Ibn al-Qayyim, Al-Manar al-Munif)
 const EXAGGERATED_REWARD_PATTERNS = [
-  'barangsiapa yang bergembira dengan datangnya bulan ramadhan, jasadnya diharamkan dari neraka',
-  'diampuni dosanya beserta dosa tujuh turunannya',
-  'mendapatkan pahala tujuh puluh nabi',
-  'mendapatkan pahala tujuh puluh ribu syuhada',
-  'seperti beribadah tujuh puluh tahun',
-  'barangsiapa membaca doa ini, malaikat jibril akan kebingungan mencatat pahalanya',
-  'malaikat pencatat amal sampai kelelahan mencatat pahalanya',
-  'dibangunkan seribu kota di surga',
-  'barangsiapa yang shalat dhuha, akan dicukupkan rezekinya hingga tujuh turunan',
-  'pahalanya seperti mengkhatamkan al quran seribu kali',
-  'pahalanya seperti haji dan umrah seribu kali',
-  'pahala sejuta', 'pahala seribu', 'pahala satu juta',
-  'minum kopi masuk surga',
-  'selama rasa kopi masih ada di',
-  'malaikat memintakan ampun selama rasa kopi',
-  'seperti membebaskan seribu budak dari keturunan ismail',
-  'barangsiapa bershalawat kepadaku pada hari jumat seribu kali',
+  /barang\s*siapa.*bergembira.*ramadhan.*diharamkan.*neraka/,
+  /diampuni.*dosa.*tujuh\s+turunan/,
+  /pahala\s+(tujuh\s+puluh|70)\s+nabi/,
+  /pahala\s+(tujuh\s+puluh\s+ribu|70\s*000)\s+syuhada/,
+  /beribadah\s+(tujuh\s+puluh|70)\s+tahun/,
+  /barang\s*siapa.*membaca.*malaikat\s+jibril.*kebingungan/,
+  /malaikat.*kelelahan.*mencatat.*pahala/,
+  /dibangunkan\s+(seribu|1\s*000)\s+kota.*surga/,
+  /barang\s*siapa.*shalat\s+dhuha.*rezeki.*tujuh\s+turunan/,
+  /pahala.*khatam.*(al\s*quran|quran)\s+(seribu|1\s*000)\s+kali/,
+  /pahala.*haji.*umrah\s+(seribu|1\s*000)\s+kali/,
+  /pahala\s+(sejuta|satu\s+juta|1\s*000\s*000|seribu|1\s*000)/,
+  /minum\s+kopi.*masuk\s+surga/,
+  /selama\s+rasa\s+kopi\s+masih\s+ada/,
+  /malaikat.*ampun.*selama\s+rasa\s+kopi/,
+  /membebaskan\s+(seribu|1\s*000)\s+budak.*ismail/,
+  /barang\s*siapa.*shalawat.*hari\s+jumat.*(seribu|1\s*000)\s+kali/,
 ];
 
 // FAKTA 2: Bahasa/istilah modern yang anakronistik (Tarikhiyyah al-Lafz)
@@ -70,31 +70,35 @@ const MODERN_LANGUAGE_PATTERNS = [
 // tidak bisa di-jama' (dikompromikan), maka ketahuilah bahwa sanadnya gelap dan matannya bathil. 
 // Kalamullah tidak mungkin bertabrakan dengan sabda Rasul-Nya ﷺ."
 const QURAN_CONTRADICTION_PATTERNS = [
-  'selangkah anak perempuan keluar rumah tanpa menutup aurat, selangkah pula ayahnya ditarik ke neraka',
-  'dosa istri mutlak ditanggung suami', // Bertentangan dengan QS. Al-An'am: 164 (Setiap jiwa menanggung dosanya sendiri)
-  'dosa ditanggung anak', 'dosa dipikul orang tua',
-  'kiamat akan terjadi pada tahun', // Bertentangan dengan QS. Luqman: 34 (Ilmu tentang Kiamat hanya di sisi Allah)
-  'umur umatku tidak akan mencapai',
-  'kiamat akan terjadi pada hari jumat tanggal',
-  'barangsiapa yang bernama muhammad tidak akan masuk neraka', // Bertentangan dengan prinsip hisab berdasarkan amal
-  'allah wajib mengabulkan doa ini dalam', // Memaksa kehendak Allah secara mutlak menyalahi QS. Al-Baqarah: 284
-  'orang yang meninggalkan shalat jumat tiga kali berturut-turut maka kafir secara mutlak',
-  'anak zina tidak akan masuk surga sampai tujuh turunan', // Bertentangan dengan QS. Al-An'am: 164
+  /selangkah\s+anak\s+perempuan.*keluar.*tanpa\s+menutup\s+aurat.*selangkah.*ayah.*ditarik.*neraka/,
+  /dosa\s+istri.*ditanggung\s+suami/, // Bertentangan dengan QS. Al-An'am: 164 (Setiap jiwa menanggung dosanya sendiri)
+  /dosa\s+(ditanggung|dipikul)\s+(anak|orang\s+tua)/,
+  /kiamat\s+akan\s+terjadi\s+pada\s+tahun/, // Bertentangan dengan QS. Luqman: 34 (Ilmu tentang Kiamat hanya di sisi Allah)
+  /umur\s+umatku\s+tidak\s+akan\s+mencapai/,
+  /kiamat\s+akan\s+terjadi\s+pada\s+(hari\s+)?jumat\s+tanggal/,
+  /barang\s*siapa.*bernama\s+muhammad.*tidak\s+akan\s+masuk\s+neraka/, // Bertentangan dengan prinsip hisab berdasarkan amal
+  /allah\s+wajib\s+mengabulkan\s+doa\s+ini/, // Memaksa kehendak Allah secara mutlak menyalahi QS. Al-Baqarah: 284
+  /meninggalkan\s+shalat\s+jumat\s+tiga\s+kali.*kafir/,
+  /anak\s+zina.*tidak\s+akan\s+masuk\s+surga/, // Bertentangan dengan QS. Al-An'am: 164
 ];
 
 // FAKTA 4: Ancaman tidak proporsional / pola pesan berantai (Tahwil al-Kadzib)
 // [Ta'liq Al-Muhaddith]: "Pola ini sering kita temukan di selebaran-selebaran gelap atau pesan digital berantai. 
 // Ini adalah tipu daya syaithan untuk menakut-nakuti awam dengan membawa-bawa nama Nabi ﷺ."
 const FABRICATED_THREAT_PATTERNS = [
-  'lima belas siksaan bagi yang meninggalkan shalat',
-  'enam siksaan di dunia, tiga siksaan ketika mati',
-  'tiga siksaan di alam kubur, tiga siksaan saat dibangkitkan',
-  'barangsiapa yang tidak menyebarkan',
-  'barangsiapa mengabaikan pesan ini, tangannya akan lumpuh',
-  'barangsiapa berhaji tapi tidak menziarahiku, maka ia telah memboikotku',
-  'sebarkan atau sial', 'sebarkan atau kena musibah', 'jangan putus di kamu',
-  'forward pesan ini', 'pasti masuk neraka', 'akan mendapat musibah bertubi-tubi',
-  'berhentilah sejenak dan kirimkan ke', 'bagikan ke sepuluh kontak',
+  /(lima\s+belas|15)\s+siksaan.*meninggalkan\s+shalat/,
+  /(enam|6)\s+siksaan.*dunia.*(tiga|3)\s+siksaan.*mati/,
+  /(tiga|3)\s+siksaan.*kubur.*(tiga|3)\s+siksaan.*dibangkitkan/,
+  /barang\s*siapa.*tidak\s+menyebarkan/,
+  /mengabaikan\s+pesan\s+ini.*lumpuh/,
+  /berhaji.*tidak\s+menziarahi.*memboikot/,
+  /sebarkan\s+atau\s+(sial|kena\s+musibah)/,
+  /jangan\s+putus\s+di\s+kamu/,
+  /forward\s+pesan/,
+  /pasti\s+masuk\s+neraka/,
+  /musibah\s+bertubi/,
+  /berhenti(lah)?\s+sejenak.*kirim(kan)?\s+ke/,
+  /bagi(kan)?\s+ke\s+(sepuluh|10)\s+kontak/,
 ];
 
 // FAKTA 5: Praktik bid'ah / amalan kontroversial (Ma Laa Asla Lahu fil Ibadah)
@@ -116,43 +120,43 @@ const BID_AH_PRACTICE_PATTERNS = [
 // hikmah dari tabib Arab, filosof, atau orang zuhud yang seiring waktu lisan orang awam membajaknya 
 // dan menyandarkannya kepada sayyidul mursalin ﷺ."
 const POPULAR_QUOTES_AND_MEDICAL_HOAX = [
-  'cinta tanah air sebagian dari iman', // Hubbul wathan minal iman (Maudhu')
-  'tuntutlah ilmu dari buaian hingga liang lahat', // Pepatah Arab
-  'perbedaan umatku adalah rahmat', // Ikhtilafu ummati rahmat (La asla lahu)
-  'agama adalah akal, tidak ada agama bagi yang tidak berakal', // Batil (Ibnu Taimiyyah)
-  'bekerjalah untuk duniamu seakan-akan engkau hidup selamanya', // Atsar sahabat/pepatah, bukan marfu'
-  'makanlah sebelum lapar dan berhentilah sebelum kenyang', // Perkataan tabib Harits bin Kaladah
-  'berbuka puasalah dengan yang manis-manis', // Menyelisihi sunnah berbuka dengan kurma basah (ruthab)
-  'jangan minum sambil berdiri', // Penjelasan medis modern, bukan sabda Nabi
-  'kebersihan pangkal kesehatan', // Slogan modern
-  'surga di bawah telapak kaki ibu', // Lafaz ini lemah/maudhu', yang shahih adalah "Fa innal jannata 'inda rijleiha" (sesungguhnya surga ada di dekat kedua kakinya).
+  /cinta\s+(tanah\s+air|wathan).*sebagian.*iman/, // Hubbul wathan minal iman (Maudhu')
+  /tuntut(lah)?\s+ilmu\s+dari\s+buaian.*liang\s+lahat/, // Pepatah Arab
+  /(perbedaan|ikhtilaf).*umat.*rahmat/, // Ikhtilafu ummati rahmat (La asla lahu)
+  /agama\s+adalah\s+akal.*tidak\s+ada\s+agama/, // Batil (Ibnu Taimiyyah)
+  /bekerja(lah)?.*dunia.*hidup\s+selamanya/, // Atsar sahabat/pepatah, bukan marfu'
+  /makan(lah)?\s+sebelum\s+lapar.*berhenti(lah)?\s+sebelum\s+kenyang/, // Perkataan tabib Harits bin Kaladah
+  /berbuka\s+puasa(lah)?.*dengan\s+yang\s+manis/, // Menyelisihi sunnah berbuka dengan kurma basah (ruthab)
+  /jangan\s+minum\s+sambil\s+berdiri/, // Penjelasan medis modern, bukan sabda Nabi
+  /kebersihan\s+pangkal\s+kesehatan/, // Slogan modern
+  /surga.*di\s+bawah\s+telapak\s+kaki\s+ibu/, // Lafaz ini lemah/maudhu', yang shahih adalah "Fa innal jannata 'inda rijleiha" (sesungguhnya surga ada di dekat kedua kakinya).
 ];
 
 // FAKTA 7: Pola regex spesifik (Shorih al-Kadzib)
 // [Ta'liq Al-Muhaddith]: "Aturan pendeteksian pola identik untuk teks-teks parah yang sudah di-tahdzir ulama."
 const REGEX_RED_FLAGS = [
   // Kasus 1-5: Pola Lama
-  { pattern: /tuntut(lah)?\s+ilmu\s+(walau|meski)\s+(ke|sampai)\s+negeri\s+cina/i, issue: 'Dha\'if Jiddan / Diperdebatkan. Negeri Cina memang sudah dikenal pada masa Nabi ﷺ, jadi bukan anakronisme. Namun dari sisi sanad, mayoritas ulama hadits seperti Ibn Hibban, Al-\'Uqaili, dan Al-Albani menilainya sangat lemah atau tidak ada asal usulnya sebagai hadits marfu\' (sabda Nabi). Lebih tepat diklasifikasikan sebagai hikam (kata mutiara), bukan hadits.' },
+  { pattern: /tuntut(lah)?\s+ilmu\s+(walau|meski)\s+(ke|sampai)\s+negeri\s+cina/i, issue: 'Dha\'if Jiddan / Diperdebatkan. dari sisi sanad, mayoritas ulama hadits seperti Ibn Hibban, Al-\'Uqaili, dan Al-Albani menilainya sangat lemah atau tidak ada asal usulnya sebagai hadits marfu\' (sabda Nabi).' },
   { pattern: /kebersihan\s+(itu\s+)?sebagian\s+dari\s+iman/i, issue: 'Bukan hadits (Ini susunan kata awam. Hadits shahih berbunyi: "Ath-Thuhuru syathrul iiman" / "Bersuci itu setengah keimanan").' },
   { pattern: /tidur(nya)?\s+orang\s+(yang\s+)?berpuasa\s+adalah\s+ibadah/i, issue: 'Dha\'if Jiddan (Sangat Lemah). Ini alasan bagi para pemalas di bulan Ramadhan.' },
   { pattern: /awal(nya)?\s+ramadhan\s+(adalah\s+)?rahmat.*pertengahan(nya)?\s+ampunan/i, issue: 'Munkar/Sangat Lemah. Syaikh Al-Albani menilainya munkar. Ramadhan dari awal hingga akhir adalah rahmat & ampunan.' },
   { pattern: /barang\s*siapa\s+(membaca|menulis)\s+surat\s+(yasin|al waqiah|al mulk).*?(ribuan|\d+)\s+kali/i, issue: 'Maudhu\' (Klaim berlebihan dalam penetapan jumlah ganjaran/bacaan surat tertentu tanpa dalil).' },
-  
+
   // Kasus 6: Hadits palsu musiman menjelang bulan puasa
   { pattern: /barang\s*siapa\s+(yang\s+)?(menyampaikan|memberitahu(kan)?)\s+(berita\s+|kabar\s+)?masuk(nya)?\s+bulan\s+(ramadhan|rajab|sya'?ban).*?diharamkan\s+api\s+neraka/i, issue: 'Maudhu\' (Pesan berantai musiman menjelang bulan suci yang sering disebar di grup WA. Ini murni kebohongan/kadzib atas nama Nabi).' },
-  
+
   // Kasus 7: Nasihat tabib yang disandarkan pada Nabi
   { pattern: /makan(lah)?\s+sebelum\s+lapar.*?berhenti(lah)?\s+sebelum\s+kenyang/i, issue: 'Bukan Hadits (Sering diviralkan sebagai "Pola Makan Rasulullah", padahal ini adalah kalimat seorang tabib Arab bernama Al-Harits bin Kaladah).' },
-  
+
   // Kasus 8: Mitos perpecahan
   { pattern: /(perbedaan|ikhtilaf)(\s+pendapat)?\s+umatku\s+adalah\s+rahmat/i, issue: 'La Asla Lahu (Tidak ada asalnya). Ulama seperti As-Subki dan Al-Albani menyatakan tidak ditemukan sanadnya sama sekali dalam pangkalan hadits.' },
-  
+
   // Kasus 9: Slogan nasionalis
   { pattern: /cinta\s+(tanah\s+air|negara)\s+sebagian\s+dari\s+iman/i, issue: 'Maudhu\' (Secara sanad dikemukakan pakar hadits dari zaman dulu hingga Syaikh Al-Albani sebagai kepalsuan).' },
-  
+
   // Kasus 10: Hadits dunia akhirat
   { pattern: /bekerja(lah)?\s+untuk\s+dunia(mu)?\s+seakan.*?hidup\s+selamanya.*?(beramal|ibadah)(lah)?\s+untuk\s+akhirat/i, issue: 'Bukan Hadits Marfu\'. Ini lebih tepat disebut sebagai kata mutiara atau atsar sahabat (seperti Abdullah bin Amr), bukan sabda Nabi ﷺ.' },
-  
+
   // Kasus 11: Ancaman bohong 15 siksaan
   { pattern: /siapa\s+yang\s+meninggalkan\s+shalat.*?disiksa\s+dengan\s+(lima\s+belas|15)\s+siksaan/i, issue: 'Maudhu\' (Hadits legendaris tentang 15 siksaan bagi peninggal shalat yang sering tertulis di sampul Yasin/selebaran. Bahkan ad-Dzahabi & Ibnu Hajar sepakat ini palsu).' },
 ];
@@ -163,6 +167,10 @@ const REGEX_RED_FLAGS = [
 
 function containsAny(text, patterns) {
   return patterns.some(p => {
+    if (p instanceof RegExp) {
+      return p.test(text);
+    }
+    // Case-insensitive literal match with word boundaries for strings
     const escapedPattern = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`\\b${escapedPattern}\\b`, 'i');
     return regex.test(text);
@@ -199,7 +207,7 @@ function gatherFacts(inputText) {
 }
 
 // =============================================================================
-// TAHAP 2: FORWARD CHAINING — EVALUASI ATURAN (R1..R8)
+// TAHAP 2: FORWARD CHAINING & CERTAINTY FACTOR — EVALUASI ATURAN (R1..R8)
 // =============================================================================
 
 const SEVERITY = {
@@ -212,66 +220,90 @@ const SEVERITY = {
   'HOAKS_BUKAN_HADIS': 6,
 };
 
+// Nilai CF (Certainty Factor) untuk masing-masing Red Flag
+const CF_WEIGHTS = {
+  R1_EXAGGERATED_REWARD: 0.80, // Yakin (80%) - Terkadang ada hadis fadhail amal yang shahih
+  R2_FABRICATED_THREAT: 0.90,  // Sangat Yakin (90%) - Ciri khas pesan berantai digital
+  R3_QURAN_CONTRADICTION: 1.0, // Mutlak (100%) - Ijma' ulama matan palsu jika menentang qath'i
+  R4_MODERN_LANGUAGE: 0.95,    // Sangat Yakin (95%) - Anakronisme mustahil dari Nabi
+  R5_BIDAH_PRACTICE: 0.60,     // Cukup Yakin (60%) - Seringkali bermasalah/dha'if, bukan murni palsu
+  R6_POPULAR_QUOTES: 0.85,     // Yakin (85%) - Ucapan tabib/pepatah, sisa 0.15 jika makna benar
+  R7_REGEX_RED_FLAG: 0.95,     // Sangat Yakin (95%) - Telah divonis sfesifik oleh ulama (Shorih)
+};
+
+/**
+ * Kombinasi persamaan Certainty Factor untuk >1 premis/gejala (Parallel CF)
+ * Rumus: CF_Combine = CF1 + CF2 * (1 - CF1)
+ */
+function combineCF(currentCF, newCF) {
+  return currentCF + newCF * (1 - currentCF);
+}
+
 function evaluateExpertLayer(inputText) {
   const facts = gatherFacts(inputText);
   const reasons = [];
   const rulesFired = [];
   let expertStatus = null;
   let expertLabel = null;
+  let totalCF = 0.0;
 
-  const updateStatus = (status, label) => {
+  const updateStatus = (status, label, ruleId) => {
     if (!expertStatus || SEVERITY[status] >= SEVERITY[expertStatus]) {
       expertStatus = status;
       expertLabel = label;
+    }
+    // Update perhitungan CF
+    if (ruleId && CF_WEIGHTS[ruleId]) {
+      totalCF = combineCF(totalCF, CF_WEIGHTS[ruleId]);
     }
   };
 
   // R1: IF hasExaggeratedReward THEN KUAT_INDIKASI_MAUDHU
   if (facts.hasExaggeratedReward) {
-    updateStatus('KUAT_INDIKASI_MAUDHU', 'Kuat Indikasi Maudhu\' (Janji Pahala Sangat Berlebihan)');
-    reasons.push('R1: Terdapat pola janji pahala yang sangat berlebihan (Al-Mujazafah) yang secara umum diklasifikasikan ulama sebagai ciri kuat hadits maudhu\'.');
+    updateStatus('KUAT_INDIKASI_MAUDHU', 'Kuat Indikasi Maudhu\' (Janji Pahala Sangat Berlebihan)', 'R1_EXAGGERATED_REWARD');
+    reasons.push('R1: Terdapat pola janji pahala yang sangat berlebihan (Al-Mujazafah).');
     rulesFired.push('R1_EXAGGERATED_REWARD');
   }
 
   // R2: IF hasFabricatedThreat THEN KUAT_INDIKASI_MAUDHU
   if (facts.hasFabricatedThreat) {
-    updateStatus('KUAT_INDIKASI_MAUDHU', 'Kuat Indikasi Maudhu\' (Ancaman Dibuat-buat / Hoaks Berantai)');
-    reasons.push('R2: Teks mengandung ancaman yang tidak wajar atau pola khas pesan berantai (hoaks digital) yang bukan berasal dari sumber hadits.');
+    updateStatus('KUAT_INDIKASI_MAUDHU', 'Kuat Indikasi Maudhu\' (Ancaman Dibuat-buat / Hoaks Berantai)', 'R2_FABRICATED_THREAT');
+    reasons.push('R2: Teks mengandung ancaman yang tidak wajar atau pola khas pesan berantai (hoaks digital).');
     rulesFired.push('R2_FABRICATED_THREAT');
   }
 
   // R3: IF hasQuranContradiction THEN KUAT_INDIKASI_MAUDHU
   if (facts.hasQuranContradiction) {
-    updateStatus('KUAT_INDIKASI_MAUDHU', 'Kuat Indikasi Maudhu\' (Bertentangan dengan Prinsip Al-Quran)');
-    reasons.push('R3: Matan mengandung pernyataan yang bertentangan dengan prinsip Al-Quran yang sudah qath\'i (jelas dan pasti).');
+    updateStatus('KUAT_INDIKASI_MAUDHU', 'Kuat Indikasi Maudhu\' (Bertentangan dengan Prinsip Al-Quran)', 'R3_QURAN_CONTRADICTION');
+    reasons.push('R3: Matan mengandung pernyataan yang bertentangan dengan prinsip Al-Quran yang sudah qath\'i.');
     rulesFired.push('R3_QURAN_CONTRADICTION');
   }
 
   // R4: IF hasModernLanguage THEN KUAT_INDIKASI_MAUDHU
   if (facts.hasModernLanguage) {
-    updateStatus('KUAT_INDIKASI_MAUDHU', 'Kuat Indikasi Maudhu\' (Mengandung Istilah/Konsep Modern)');
-    reasons.push('R4: Matan mengandung istilah atau konsep yang baru dikenal di era modern dan tidak mungkin ada di masa Nabi ﷺ (abad 7 M).');
+    updateStatus('KUAT_INDIKASI_MAUDHU', 'Kuat Indikasi Maudhu\' (Mengandung Istilah/Konsep Modern)', 'R4_MODERN_LANGUAGE');
+    reasons.push('R4: Matan mengandung istilah modern dan tidak mungkin ada di masa Nabi ﷺ.');
     rulesFired.push('R4_MODERN_LANGUAGE');
   }
 
   // R5: IF hasBidahPractice THEN LEMAH_CENDERUNG_TIDAK_SHOHIH
   if (facts.hasBidahPractice) {
-    updateStatus('LEMAH_CENDERUNG_TIDAK_SHOHIH', 'Indikasi Lemah / Kontroversial (Amalan Khusus, Perlu Tahqiq Ulama)');
-    reasons.push('R5: Redaksi menyebut amalan khusus yang banyak dinilai ulama sebagai tidak memiliki hadits shahih yang kuat.');
+    updateStatus('LEMAH_CENDERUNG_TIDAK_SHOHIH', 'Indikasi Lemah / Kontroversial (Amalan Khusus)', 'R5_BIDAH_PRACTICE');
+    reasons.push('R5: Redaksi menyebut amalan khusus yang menurut ulama tidak memiliki hadits shahih yang kuat.');
     rulesFired.push('R5_BIDAH_PRACTICE');
   }
 
   // R6: IF hasPopularQuotes THEN LA_ASLA_LAHU
   if (facts.hasPopularQuotes) {
-    updateStatus('LA_ASLA_LAHU', 'La Asla Lahu (Pepatah/Mitos Populer, Bukan Hadits)');
-    reasons.push('R6: Teks ini sangat mirip dengan pepatah Arab, nasihat tabib, atau mitos populer yang sering keliru disandarkan kepada Nabi ﷺ.');
+    updateStatus('LA_ASLA_LAHU', 'La Asla Lahu (Pepatah/Mitos Populer, Bukan Hadits)', 'R6_POPULAR_QUOTES');
+    reasons.push('R6: Teks ini sangat mirip dengan pepatah Arab, nasihat tabib, atau mitos populer.');
     rulesFired.push('R6_POPULAR_QUOTES');
   }
 
   // R7: IF hasRegexRedFlag THEN KUAT_INDIKASI_MAUDHU
   if (facts.hasRegexRedFlag) {
     const issues = facts.regexMatches.map(m => m.issue).join('; ');
-    updateStatus('KUAT_INDIKASI_MAUDHU', 'Kuat Indikasi Maudhu\' / Bermasalah (Teridentifikasi Pola Spesifik)');
+    updateStatus('KUAT_INDIKASI_MAUDHU', 'Kuat Indikasi Maudhu\' / Bermasalah (Teridentifikasi Pola Spesifik)', 'R7_REGEX_RED_FLAG');
     reasons.push(`R7: Peringatan Spesifik: ${issues}`);
     rulesFired.push('R7_REGEX_RED_FLAG');
   }
@@ -280,13 +312,15 @@ function evaluateExpertLayer(inputText) {
   if (rulesFired.length === 0) {
     expertStatus = 'REQUIRES_FACT_GATHERING';
     expertLabel = 'Tidak Terdeteksi Red-Flag Otomatis (Butuh Evaluasi Lanjutan)';
-    reasons.push('R8: Sistem tidak menemukan pola red-flag pada teks ini. Diperlukan evaluasi lanjutan melalui penelusuran fakta M1-M5.');
+    reasons.push('R8: Sistem tidak menemukan pola red-flag pada teks ini. Diperlukan evaluasi lanjutan M1-M5.');
     rulesFired.push('R8_NO_RULES_FIRED');
+    totalCF = 0.0;
   }
 
   return {
     expertStatus, expertLabel, reasons, rulesFired,
     factsGathered: facts,
     requiresFactGathering: expertStatus === 'REQUIRES_FACT_GATHERING',
+    certaintyFactor: totalCF, // Prosentase keyakinan sistem (0.0 - 1.0)
   };
 }

@@ -8,16 +8,18 @@ Dokumen ini menjelaskan arsitektur, isi file, kegunaan, serta alur kerja algorit
 
 | File | Peran dalam Sistem Pakar | Keterangan |
 |------|--------------------------|------------|
-| `public/index.html` | **User Interface** | Halaman web utama — buka langsung di browser, tanpa server. |
-| `public/app.js` | **Knowledge Base + Inference Engine + UI** | Berisi: (1) Basis Pengetahuan (array pola red-flag), (2) Mesin Inferensi Forward Chaining (R1–R13), (3) Logika rendering antarmuka pengguna. |
-| `explain.md` | **Dokumentasi** | Penjelasan lengkap arsitektur, metode, dan alur kerja (dokumen ini). |
+| `public/index.html` | **User Interface** | Halaman web utama — struktur HTML murni. Form penelusuran fakta di-render dinamis oleh `app.js`. |
+| `public/knowledge_base.js` | **Knowledge Base + Inference Engine (Otomatis)** | Array 7 kategori pola red-flag, fungsi `normalizeText()`, `gatherFacts()`, dan `evaluateExpertLayer()` (R1–R8). |
+| `public/fact_evaluator.js` | **Evaluasi Fakta Interaktif (Manual)** | Konfigurasi `FACT_QUESTIONS` (daftar pertanyaan M1-M5) dan `FACT_RULES` (aturan R9–R13). **Edit file ini untuk menambah/mengubah pertanyaan.** |
+| `public/app.js` | **UI Controller** | Render form pertanyaan dinamis dari `FACT_QUESTIONS`, event listener, dan rendering hasil ke DOM. |
+| `explain.md` | **Dokumentasi Teknis** | Penjelasan lengkap arsitektur, metode, dan alur kerja (dokumen ini). |
 | `README.md` | **Dokumentasi** | Ringkasan fitur, tabel aturan, dan cara penggunaan. |
 
 > **Catatan:** Seluruh logika sistem pakar berjalan 100% di browser (client-side). Tidak ada server backend, database, atau dependency npm yang diperlukan.
 
 ---
 
-## 2) Arsitektur: Sistem Pakar Forward Chaining
+## 2) Arsitektur: Sistem Pakar Forward Chaining & Certainty Factor
 
 ### Apa itu Forward Chaining?
 
@@ -29,39 +31,49 @@ FAKTA AWAL (input)  →  EVALUASI ATURAN (rules diperiksa satu per satu)  →  K
 
 Berbeda dengan backward chaining yang memulai dari hipotesis dan mencari bukti, forward chaining **mengevaluasi seluruh aturan secara berurutan** terhadap fakta yang ada, lalu **menyimpulkan** status akhir berdasarkan aturan yang terpicu (fired).
 
-### Komponen Sistem Pakar
+### Penanganan Ketidakpastian (Certainty Factor / CF)
 
-Sesuai dengan arsitektur standar Sistem Pakar, HadistSystemChecker memiliki 3 komponen utama:
+Dalam mengkritik matan hadis, tidak semua indikasi bernilai mutlak (100% salah/benar). Oleh karena itu, sistem ini tidak menggunakan logika pengolahan *Boolean* kaku, melainkan menggunakan paramater ketidakpastian (Uncertainty) bernama **Certainty Factor (CF)**. Setiap aturan (R1 dst.) memiliki **bobot CF spesifik** mulai dari `0.0` hingga `1.0`.
 
-| Komponen | Implementasi | Keterangan |
-|----------|-------------|------------|
-| **Knowledge Base** (Basis Pengetahuan) | Array `EXAGGERATED_REWARD_PATTERNS`, `MODERN_LANGUAGE_PATTERNS`, `QURAN_CONTRADICTION_PATTERNS`, dll. di `app.js` | Berisi fakta-fakta dan pola yang menjadi dasar pengetahuan sistem |
-| **Inference Engine** (Mesin Inferensi) | Fungsi `evaluateExpertLayer()` dan `evaluateFactGathering()` di `app.js` | Mekanisme Forward Chaining yang mengevaluasi aturan R1–R13 secara berurutan |
-| **User Interface** (Antarmuka Pengguna) | `index.html` + fungsi rendering di `app.js` | Input teks, tampilan hasil analisis, dan penelusuran fakta interaktif |
+Jika beberapa aturan terdeteksi berbarengan (Multiple Evidence), probabilitas kepalsuan hadis dikombinasikan dengan metode Parallel CF menggunakan rumus:
+`CF_Combine = CF1 + CF2 * (1 - CF1)`
+
+### Komponen Sistem Pakar (Separation of Concerns)
+
+| Komponen | File | Keterangan |
+|----------|------|------------|
+| **Knowledge Base** (Basis Pengetahuan) | `knowledge_base.js` | Array pola red-flag (7 kategori): `EXAGGERATED_REWARD_PATTERNS`, `MODERN_LANGUAGE_PATTERNS`, `QURAN_CONTRADICTION_PATTERNS`, dll. |
+| **Inference Engine — Otomatis** | `knowledge_base.js` | Fungsi `gatherFacts()` dan `evaluateExpertLayer()` → Forward Chaining R1–R8 + Algoritma Hitung CF Paralel |
+| **Inference Engine — Interaktif** | `fact_evaluator.js` | `FACT_QUESTIONS` (config data-driven) + `evaluateFactGathering()` → Aturan R9–R13 dan kalkulasi manual CF |
+| **User Interface** | `index.html` + `app.js` | HTML struktur + DOM controller yang render form dinamis dari `FACT_QUESTIONS` |
 
 ---
 
 ## 3) Alur Kerja Utama (3 Tahap)
 
-### Tahap 1: Pengumpulan Fakta (Fact Gathering)
+### Tahap 1: Pengumpulan Fakta (Fact Gathering) — `knowledge_base.js`
 
 Fungsi `gatherFacts()` menerima teks input user, menormalisasi teksnya (lowercase, hapus tanda baca), lalu mencocokkannya dengan 7 kategori pola di Knowledge Base:
 
 | Fakta (Qarinah) | Array Pola | Contoh Pattern |
 |-----------------|-----------|----------------|
-| `hasExaggeratedReward` | `EXAGGERATED_REWARD_PATTERNS` (15 pola) | "pahala tujuh puluh nabi", "malaikat kelelahan mencatat" |
-| `hasModernLanguage` | `MODERN_LANGUAGE_PATTERNS` (30+ pola) | "whatsapp", "pesawat terbang", "demokrasi" |
-| `hasQuranContradiction` | `QURAN_CONTRADICTION_PATTERNS` (10 pola) | "dosa ditanggung anak", "kiamat akan terjadi pada tahun" |
+| `hasExaggeratedReward` | `EXAGGERATED_REWARD_PATTERNS` (16 pola) | "pahala tujuh puluh nabi", "malaikat kelelahan mencatat" |
+| `hasModernLanguage` | `MODERN_LANGUAGE_PATTERNS` (28+ pola) | "whatsapp", "pesawat terbang", "demokrasi" |
+| `hasQuranContradiction` | `QURAN_CONTRADICTION_PATTERNS` (9 pola) | "dosa ditanggung anak", "kiamat akan terjadi pada tahun" |
 | `hasFabricatedThreat` | `FABRICATED_THREAT_PATTERNS` (10 pola) | "sebarkan atau sial", "pasti masuk neraka" |
 | `hasBidahPractice` | `BID_AH_PRACTICE_PATTERNS` (11 pola) | "shalat raghaib", "puasa nisfu sya'ban" |
 | `hasPopularQuotes` | `POPULAR_QUOTES_AND_MEDICAL_HOAX` (8 pola) | "cinta tanah air sebagian dari iman" |
-| `hasRegexRedFlag` | `REGEX_RED_FLAGS` (4 pola regex) | `/tuntutlah? ilmu walau ke negeri cina/i` |
+| `hasRegexRedFlag` | `REGEX_RED_FLAGS` (11 pola regex) | `/tuntutlah? ilmu walau ke negeri cina/i` |
+
+> **Metode Hybrid (Regex & String):** Knowledge base mendukung campuran antara objek `RegExp` (untuk kalimat dengan variasi spasi/kata) dan `String` literal (untuk kata kunci sederhana). Keduanya diproses secara otomatis oleh fungsi `containsAny`.
+
+> **Catatan Historis:** Kata "Cina" dan "Jepang" **tidak termasuk** `MODERN_LANGUAGE_PATTERNS` karena kedua wilayah ini sudah dikenal pada abad ke-7 M — bukan anakronisme. Hadits "Tuntut ilmu ke Negeri Cina" ditangani secara terpisah di `REGEX_RED_FLAGS` dengan keterangan yang lebih nuansatif (sisi sanad yang bermasalah, bukan istilahnya).
 
 Output: Objek berisi 7 fakta boolean yang merepresentasikan qarinah yang ditemukan pada teks.
 
-### Tahap 2: Evaluasi Aturan (Forward Chaining, R1–R8)
+### Tahap 2: Evaluasi Aturan (Forward Chaining & Estimasi CF, R1–R8) — `knowledge_base.js`
 
-Fungsi `evaluateExpertLayer()` mengevaluasi aturan R1–R8 secara **berurutan** berdasarkan fakta yang dikumpulkan di Tahap 1. Aturan dengan severity lebih tinggi mendominasi aturan yang lebih rendah.
+Fungsi `evaluateExpertLayer()` mengevaluasi aturan R1–R8 secara **berurutan** berdasarkan fakta yang dikumpulkan di Tahap 1. Sistem akan mengambil status dengan tingkat keparahan (severity) tertinggi, dan mengomputasikan bobot Certainty Factor (persentase) secara paralel jika lebih dari satu aturan terpicu.
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -72,49 +84,50 @@ Fungsi `evaluateExpertLayer()` mengevaluasi aturan R1–R8 secara **berurutan** 
 ┌──────────────────────────────────────────────────┐
 │  R1: IF hasExaggeratedReward = TRUE              │
 │      THEN status = KUAT_INDIKASI_MAUDHU          │
-│      (Mubalaghah Fasidah / Pahala Berlebihan)    │
+│      CF_weight = 0.80 (Yakin)                    │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
 │  R2: IF hasFabricatedThreat = TRUE               │
 │      THEN status = KUAT_INDIKASI_MAUDHU          │
-│      (Tahwil al-Kadzib / Ancaman Dibuat-buat)    │
+│      CF_weight = 0.90 (Sangat Yakin)             │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
 │  R3: IF hasQuranContradiction = TRUE             │
 │      THEN status = KUAT_INDIKASI_MAUDHU          │
-│      (Mukhalafah lil-Qur'an / Kontradiksi Nast)  │
+│      CF_weight = 1.0 (Mutlak)                    │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
 │  R4: IF hasModernLanguage = TRUE                 │
 │      THEN status = KUAT_INDIKASI_MAUDHU          │
-│      (Tarikhiyyah al-Lafz / Istilah Modern)       │
+│      CF_weight = 0.95 (Sangat Yakin)             │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
 │  R5: IF hasBidahPractice = TRUE                  │
 │      THEN status = LEMAH_CENDERUNG_TIDAK_SHOHIH  │
-│      (Ma Laa Asla Lahu fil Ibadah)                │
+│      CF_weight = 0.60 (Cukup Yakin)              │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
 │  R6: IF hasPopularQuotes = TRUE                  │
 │      THEN status = LA_ASLA_LAHU                  │
-│      (Masyhur 'ala Alsinatun-Naas / Slogan Populer) │
+│      CF_weight = 0.85 (Yakin)                    │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
 │  R7: IF hasRegexRedFlag = TRUE                   │
 │      THEN status = KUAT_INDIKASI_MAUDHU          │
-│      (Shorih al-Kadzib / 11 Pola Regex Spesifik)  │
+│      CF_weight = 0.95 (Sangat Yakin)             │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
 │  R8: IF (tidak ada aturan R1-R7 yang terpicu)    │
 │      THEN status = REQUIRES_FACT_GATHERING       │
-│      → Lanjut ke Tahap 3 (Penelusuran Fakta M1-M5)│
+│      CF_weight = 0.0                             │
+│      → Lanjut ke Tahap 3 (Penelusuran Manual)    │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
@@ -123,11 +136,11 @@ Fungsi `evaluateExpertLayer()` mengevaluasi aturan R1–R8 secara **berurutan** 
 │  - expertLabel (label deskriptif)                │
 │  - reasons[] (daftar alasan keputusan)           │
 │  - rulesFired[] (daftar aturan yang terpicu)     │
-│  - factsGathered (objek fakta boolean)           │
+│  - certaintyFactor (Keyakinan komulatif <1.0)    │
 └──────────────────────────────────────────────────┘
 ```
 
-**Mekanisme Severity:** Setiap status memiliki tingkat keparahan (severity). Jika beberapa aturan terpicu bersamaan, status dengan severity tertinggi yang mendominasi:
+**Mekanisme Severity:** Jika beberapa aturan terpicu bersamaan, status dengan severity tertinggi mendominasi:
 
 | Severity | Status |
 |----------|--------|
@@ -139,21 +152,35 @@ Fungsi `evaluateExpertLayer()` mengevaluasi aturan R1–R8 secara **berurutan** 
 | 1 | PERLU_TAHQIQ_LANJUT |
 | 0 | REQUIRES_FACT_GATHERING |
 
-### Tahap 3: Penelusuran Fakta Interaktif (Fallback Manual, R9–R13)
+### Tahap 3: Penelusuran Fakta Interaktif (Fallback Manual, R9–R13) — `fact_evaluator.js`
 
-Jika Tahap 2 tidak menemukan red-flag otomatis (R8 terpicu), frontend menampilkan **Penelusuran Fakta M1–M5** yang harus dijawab oleh pengguna berdasarkan observasi manual terhadap teks:
+Jika Tahap 2 tidak menemukan red-flag otomatis (R8 terpicu), frontend menampilkan **Penelusuran Fakta** yang di-generate dinamis dari array `FACT_QUESTIONS`. Pengguna menjawab berdasarkan observasi manual terhadap teks.
 
-| Kode | Pertanyaan (Premis) | Jawaban "YA" → Kesimpulan |
-|------|---------------------|--------------------------|
-| M1 | Apakah teks memuat janji pahala fantastis atau ancaman mengerikan untuk amalan sepele? | R10: KUAT_INDIKASI_MAUDHU (Al-Mujazafah) |
-| M2 | Apakah teks menentukan waktu spesifik kiamat/bencana besar? | R11: KUAT_INDIKASI_MAUDHU (Ghaib) |
-| M3 | Apakah teks berisi pujian/celaan rasis terhadap suku/kota tertentu? | R12: INDIKASI_MAUDHU_POLITIS |
-| M4 | Apakah isi teks bertentangan dengan akal sehat/fakta empiris? | R11: KUAT_INDIKASI_MAUDHU (Empiris) |
-| M5 | Apakah susunan kalimat terasa modern/ancaman berantai/rancu? | R9: HOAKS_BUKAN_HADIS (Rikakah al-Lafz) |
+**Pendekatan Data-Driven:** Pertanyaan didefinisikan sebagai array objek di `FACT_QUESTIONS`. Form HTML di-render otomatis oleh `app.js` — tidak ada teks pertanyaan yang hardcode di `index.html`.
 
-Jika semua dijawab "TIDAK" → R13: STATUS_TIDAK_DIKENALI (butuh pakar manusia).
+| Kode | Pertanyaan (Premis) | Bobot (CF) | Jawaban "YA" → Kesimpulan |
+|------|---------------------|------------|-----------------------------|
+| M1 | Apakah teks memuat janji pahala fantastis atau ancaman mengerikan untuk amalan sepele? | 0.80 | R10: KUAT_INDIKASI_MAUDHU (Al-Mujazafah) |
+| M2 | Apakah teks menentukan waktu spesifik kiamat/bencana besar? | 0.90 | R11: KUAT_INDIKASI_MAUDHU (Ghaib/Empiris) |
+| M3 | Apakah teks berisi pujian/celaan rasis terhadap suku/kota tertentu? | 0.85 | R12: INDIKASI_MAUDHU_POLITIS |
+| M4 | Apakah isi teks bertentangan dengan akal sehat/fakta empiris? | 0.90 | R11: KUAT_INDIKASI_MAUDHU (Ghaib/Empiris) |
+| M5 | Apakah susunan kalimat terasa modern/ancaman berantai/rancu? | 0.90 | R9: HOAKS_BUKAN_HADIS |
+
+Jika semua dijawab "TIDAK" → R13: STATUS_TIDAK_DIKENALI (butuh pakar manusia / CF: 0.0).
 
 **Urutan evaluasi prioritas:** R9 (M5) → R10 (M1) → R11 (M2/M4) → R12 (M3) → R13 (semua TIDAK).
+
+#### Cara Menambah Pertanyaan Baru
+
+Edit `fact_evaluator.js` — cukup dua langkah:
+
+```js
+// 1. Tambah ke FACT_QUESTIONS
+{ id: 'm6', label: 'Label', text: 'M6. Teks pertanyaan baru...' }
+
+// 2. Tambah ke FACT_RULES
+{ ids: ['m6'], expertStatus: 'KUAT_INDIKASI_MAUDHU', expertLabel: '...', reason: '...', ruleFired: 'R14_...' }
+```
 
 ---
 
@@ -176,7 +203,7 @@ Contoh: "barangsiapa yang tidak menyebarkan pesan ini", "sebarkan atau sial", "p
 Dasar: **Ulama sepakat bahwa hadits shahih mustahil bertentangan dengan Al-Quran.**
 
 Pola berdasarkan ayat Al-Quran yang sudah qath'i:
-- **QS. Al-An'am: 164** — "Setiap jiwa menanggung dosanya sendiri" → Mendeteksi klaim transfer dosa (contoh: anak zina tidak masuk surga 7 turunan).
+- **QS. Al-An'am: 164** — "Setiap jiwa menanggung dosanya sendiri" → Mendeteksi klaim transfer dosa.
 - **QS. Luqman: 34 & Al-An'am: 59** — "Ilmu ghaib hanya milik Allah" → Mendeteksi prediksi presisi waktu kiamat.
 - **QS. Al-Hujurat: 13** — Kemuliaan berdasarkan ketakwaan → Mendeteksi jaminan keselamatan mutlak berdasarkan nama/keturunan.
 
@@ -184,7 +211,9 @@ Pola berdasarkan ayat Al-Quran yang sudah qath'i:
 
 Dasar: **Hadits adalah ucapan Nabi ﷺ di abad 7 M.** Tidak mungkin mengandung istilah yang baru dikonstruksi peradaban modern.
 
-Kategori: Teknologi (whatsapp, kripto, wifi), politik modern (demokrasi, sekularisme), geografis (indonesia, amerika), medis (vaksin, paracetamol, operasi plastik), dan mistis modern (zodiak, ramalan bintang).
+Kategori: Teknologi (whatsapp, kripto, wifi), politik modern (demokrasi, sekularisme), geografis modern (indonesia, amerika), medis (vaksin, paracetamol, operasi plastik), dan mistis modern (zodiak, ramalan bintang).
+
+> **Catatan:** Nama wilayah yang sudah dikenal pada abad ke-7 M seperti **Cina** dan **Jepang** *tidak* dimasukkan ke kategori ini untuk menghindari false positive.
 
 ### R5: Amalan Bid'ah / Kontroversial (*Ma Laa Asla Lahu fil Ibadah*)
 
@@ -202,17 +231,17 @@ Contoh: "cinta tanah air sebagian dari iman", "kebersihan pangkal kesehatan", "s
 
 Sistem memiliki **11 aturan pendeteksian pola regex dinamis** untuk teks-teks parah yang secara mutlak sudah di-tahdzir ulama.
 
-1. Hadits menuntut ilmu ke China
-2. Kebersihan sebagian dari iman (Bukan hadits, yang shahih: _Ath-Thuhuru syathrul iiman_)
-3. Tidur saat puasa adalah ibadah
-4. Awal ramadhan rahmat, pertengahan ampunan (Munkar)
-5. Klaim spesifik bacaan surat tertentu (ribuan kali baca Yasin/Al-Mulk/Al-Waqi'ah)
-6. Ancaman musiman: *"Barangsiapa memberitahu masuk ramadhan/rajab neraka diharamkan"*
-7. Nasehat tabib Al-Harits bin Kaladah: *"Makan sebelum lapar, berhenti sebelum kenyang"*
-8. Ikhtilafu ummati rahmat (Perbedaan umat adalah rahmat)
-9. *Hubbul wathan minal iman* (Cinta negara sebagian dari iman)
-10. *"Bekerjalah seakan hidup selamanya"* (Atsar Abdullah bin Amr, bukan hadits marfu')
-11. Legenda palsu 15 siksaan meninggalkan shalat.
+1. **Tuntut ilmu ke Negeri Cina** — Dha'if Jiddan / Diperdebatkan. Cina bukan anakronisme (dikenal abad ke-7 M), tetapi mayoritas ulama (Ibn Hibban, Al-'Uqaili, Al-Albani) menyatakan sanadnya sangat lemah. Lebih tepat sebagai hikam (kata mutiara), bukan hadits marfu'.
+2. **Kebersihan sebagian dari iman** — Bukan hadits. Yang shahih: *"Ath-Thuhuru syathrul iiman"* (Bersuci itu setengah keimanan).
+3. **Tidur saat puasa adalah ibadah** — Dha'if Jiddan.
+4. **Awal ramadhan rahmat, pertengahan ampunan** — Munkar (Syaikh Al-Albani).
+5. **Klaim spesifik bacaan surat tertentu** (ribuan kali baca Yasin/Al-Mulk/Al-Waqi'ah).
+6. **Ancaman musiman:** *"Barangsiapa memberitahu masuk ramadhan/rajab neraka diharamkan"*.
+7. **Nasihat tabib Al-Harits bin Kaladah:** *"Makan sebelum lapar, berhenti sebelum kenyang"*.
+8. **Ikhtilafu ummati rahmat** — La Asla Lahu (tidak ada sanadnya).
+9. ***Hubbul wathan minal iman*** — Maudhu' (cinta negara sebagian dari iman).
+10. ***"Bekerjalah seakan hidup selamanya"*** — Atsar sahabat (Abdullah bin Amr), bukan hadits marfu'.
+11. **Legenda palsu 15 siksaan** meninggalkan shalat.
 
 ---
 
@@ -230,16 +259,33 @@ Sistem memiliki **11 aturan pendeteksian pola regex dinamis** untuk teks-teks pa
 
 ---
 
-## 6) Fungsi Utama di `app.js`
+## 6) Fungsi Utama per File
+
+### `knowledge_base.js`
 
 | Fungsi | Peran | Input → Output |
 |--------|-------|----------------|
 | `normalizeText(text)` | Normalisasi teks | String → string lowercase tanpa tanda baca |
-| `containsAny(text, patterns)` | Pencocokan keyword | String + array pola → boolean |
+| `containsAny(text, patterns)` | Pencocokan Hybrid | Mendukung `RegExp` dan `String`. Jika string, otomatis menggunakan *word boundary* dan *case-insensitive*. |
 | `matchRegexFlags(text, regexFlags)` | Pencocokan regex | String + array regex → array issue yang cocok |
 | `gatherFacts(inputText)` | **Tahap 1:** Pengumpulan Fakta | String input → objek 7 fakta boolean |
 | `evaluateExpertLayer(inputText)` | **Tahap 2:** Forward Chaining R1–R8 | String input → hasil inferensi (status + alasan + rules) |
-| `evaluateFactGathering(answers)` | **Tahap 3:** Penelusuran Fakta R9–R13 | Objek {m1..m5} boolean → hasil inferensi manual |
+
+### `fact_evaluator.js`
+
+| Konstanta/Fungsi | Peran |
+|-----------------|-------|
+| `FACT_QUESTIONS` | Array config pertanyaan M1-M5 (data-driven). **Edit ini untuk maintenance.** |
+| `FACT_RULES` | Array aturan evaluasi R9–R13 berbasis jawaban pengguna beserta parameter probabilitas `.cfWeight` |
+| `evaluateFactGathering(answers)` | **Tahap 3:** Mengevaluasi jawaban `{ m1..m5 }` → hasil inferensi manual beserta perhitungan CF kumulatif |
+
+### `app.js`
+
+| Fungsi | Peran |
+|--------|-------|
+| `renderFactGatheringForm()` | Render form HTML dari `FACT_QUESTIONS` secara dinamis |
+| `renderExpertSummary()` | Render panel hasil analisis ke DOM |
+| Event Listeners | Menghubungkan form submit → mesin inferensi → render hasil |
 
 ---
 
@@ -250,9 +296,10 @@ Input teks user
   → normalizeText() (lowercase, hapus tanda baca)
   → gatherFacts() (scan 7 array pola → 7 fakta boolean)
   → evaluateExpertLayer() (Forward Chaining R1–R8)
-      → Jika ada rule terpicu → Kesimpulan Otomatis
+      → Jika ada rule terpicu → Kesimpulan Otomatis → Render ke UI
       → Jika tidak ada rule terpicu (R8):
-          → Tampilkan Penelusuran Fakta M1–M5
+          → app.js render form dari FACT_QUESTIONS
           → evaluateFactGathering() (R9–R13)
+          → Kesimpulan Manual → Render ke UI
   → Kesimpulan Akhir: status + label + alasan + rules fired
 ```

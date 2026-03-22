@@ -75,7 +75,8 @@ document.addEventListener('DOMContentLoaded', () => {
       rulesFired: result.rulesFired,
       factsGathered: result.factsGathered,
       requiresFactGathering: result.requiresFactGathering,
-      manualStatus: null, manualLabel: null, manualReason: null, manualRulesFired: null,
+      certaintyFactor: result.certaintyFactor,
+      manualStatus: null, manualLabel: null, manualReason: null, manualRulesFired: null, manualCertaintyFactor: null,
     };
 
     renderExpertSummary();
@@ -104,6 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentExpertData.manualLabel = result.expertLabel;
       currentExpertData.manualReason = result.reason;
       currentExpertData.manualRulesFired = result.rulesFired;
+      currentExpertData.manualCertaintyFactor = result.certaintyFactor;
 
       renderExpertSummary();
       factGatheringSection.classList.add('hidden');
@@ -142,6 +144,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const mainLabel = isManual ? currentExpertData.manualLabel : currentExpertData.label;
+
+    // Hitung persentase Certainty Factor keseluruhan dari apa yang terpilih
+    const autoCF = currentExpertData.certaintyFactor || 0;
+    const manualCF = currentExpertData.manualCertaintyFactor || 0;
+    // Jika ada manual dan auto, kita combine CF (parallel)
+    let combinedCF = autoCF;
+    if (isManual && manualCF > 0) {
+      combinedCF = autoCF + manualCF * (1 - autoCF);
+    }
+    const cfPercentage = (combinedCF * 100).toFixed(1);
+    const barColor = isAlert ? 'bg-red-600' : (isNeutral ? 'bg-amber-500' : 'bg-green-600');
+    const cfHtml = combinedCF > 0 
+      ? `<div class="mt-2 mb-4">
+           <div class="text-sm font-bold ${textClass} mb-1">Tingkat Keyakinan Sistem (Certainty Factor): <span class="text-lg">${cfPercentage}%</span></div>
+           <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-300 overflow-hidden">
+             <div class="${barColor} h-2.5 rounded-full transition-all duration-500" style="width: ${cfPercentage}%"></div>
+           </div>
+         </div>`
+      : '';
 
     const autoRulesFired = currentExpertData.rulesFired || [];
     const rulesHtml = autoRulesFired.length > 0
@@ -201,9 +222,10 @@ document.addEventListener('DOMContentLoaded', () => {
         ${statusBadge}
         <div class="text-xs font-bold ${headerClass} tracking-wider mb-2 uppercase flex items-center opacity-80">
           <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path></svg>
-          Analisis Sistem Pakar (Forward Chaining)
+          Analisis Sistem Pakar (Forward Chaining & Certainty Factor)
         </div>
         <div class="text-lg font-extrabold ${textClass} mb-3">${mainLabel}</div>
+        ${cfHtml}
         ${reasonsHtml}${rulesHtml}${factsHtml}${manualHtml}
         <div class="mt-3 pt-3 border-t border-opacity-30 border-gray-400">
           <p class="text-xs ${isAlert ? 'text-red-700' : (isNeutral ? 'text-amber-700' : 'text-green-700')} flex items-start opacity-90">
