@@ -1,6 +1,6 @@
 # Penjelasan Sistem HadistSystemChecker
 
-Dokumen ini menjelaskan isi file utama, kegunaan, serta alur kerja algoritma dari awal sampai akhir, termasuk penjelasan **eksplisit** tentang metode inferensi **forward chaining** yang digunakan pada lapisan sistem pakar.
+Dokumen ini menjelaskan arsitektur, isi file, kegunaan, serta alur kerja algoritma **Sistem Pakar Berbasis Aturan (Rule-Based Expert System)** dengan metode inferensi **Forward Chaining** yang digunakan untuk mendeteksi indikasi hadits palsu (maudhu') berdasarkan analisis matan.
 
 ---
 
@@ -8,52 +8,18 @@ Dokumen ini menjelaskan isi file utama, kegunaan, serta alur kerja algoritma dar
 
 | File | Peran dalam Sistem Pakar | Keterangan |
 |------|--------------------------|------------|
-| server.js | **User Interface (backend)** | Server Express, middleware JSON, CORS, static file. |
-| routes/search.js | **Inference Engine (orkestrator)** | Pipeline utama: memanggil NLP hybrid → lalu memanggil lapisan pakar forward chaining. |
-| nlp.js | **Inference Engine (lapisan NLP)** | Fungsi: extractMatan, preprocessText, correctTypos, buildIdf, vectorize, cosineSimilarity, getStatus. |
-| similarity.js | **Inference Engine (utilitas)** | Jaro Similarity, Jaro-Winkler Similarity, normalizeQuery. |
-| knowledge_base.js | **Knowledge Base + Rule Engine** | Basis pengetahuan berupa pola red-flag + aturan inferensi forward chaining (R0 dst., dapat dikembangkan). |
-| database.js | **Knowledge Base (data)** | Koneksi dan inisialisasi database SQLite berisi hadits shahih rujukan. |
-| fetcher.js | **Knowledge Acquisition** | Mengunduh hadits dari API publik, normalisasi, dan simpan ke SQLite. |
-| public/ | **User Interface (frontend)** | UI web: input teks hadits, tampilan skor NLP, hasil sistem pakar, dan alasan keputusan. |
+| `public/index.html` | **User Interface** | Halaman web utama — buka langsung di browser, tanpa server. |
+| `public/app.js` | **Knowledge Base + Inference Engine + UI** | Berisi: (1) Basis Pengetahuan (array pola red-flag), (2) Mesin Inferensi Forward Chaining (R1–R13), (3) Logika rendering antarmuka pengguna. |
+| `explain.md` | **Dokumentasi** | Penjelasan lengkap arsitektur, metode, dan alur kerja (dokumen ini). |
+| `README.md` | **Dokumentasi** | Ringkasan fitur, tabel aturan, dan cara penggunaan. |
+
+> **Catatan:** Seluruh logika sistem pakar berjalan 100% di browser (client-side). Tidak ada server backend, database, atau dependency npm yang diperlukan.
 
 ---
 
-## 2) Alur Kerja Utama (Urutan Algoritma)
+## 2) Arsitektur: Sistem Pakar Forward Chaining
 
-Alur di endpoint `/search` memakai **dua lapisan inferensi**: NLP hybrid + lapisan sistem pakar forward chaining.
-
-### Lapisan 1: NLP Hybrid (TF-IDF + Cosine Similarity + Overlap Coverage)
-
-> **Catatan penting:** Jaro-Winkler **hanya** digunakan di tahap Preprocessing (koreksi typo per kata). Ia **tidak ikut menghitung skor kemiripan akhir**. Skor akhir ditentukan murni oleh Cosine Similarity (40%) dan Overlap Coverage (60%).
-
-1. Ambil seluruh hadits dari database SQLite.
-2. Ekstrak **matan** dari setiap hadits (menghapus sanad) memakai `extractMatan`.
-3. Preprocess setiap matan:
-  - Case folding (lowercase)
-  - Hapus angka dan tanda baca
-  - Hapus stopwords (Bahasa Indonesia + transliterasi Arab)
-  - Tokenisasi (hanya unigram/kata tunggal, tanpa n-gram)
-4. Bangun vocabulary dari seluruh token corpus.
-5. Proses query user:
-  - `extractMatan` agar fokus pada isi matan saja
-  - `preprocessText` menghasilkan token bersih
-  - `correctTypos` memperbaiki typo per kata memakai Jaro-Winkler (threshold ≥ 0.85)
-6. Hitung IDF dari seluruh corpus (`buildIdf`).
-7. Buat vektor TF-IDF untuk query dan setiap dokumen (`vectorize`).
-   - **OOV Penalty**: Kata yang tidak ditemukan di corpus (kata asing, makian, typo parah) **tidak dibuang**, melainkan diberi bobot IDF maksimal (`_maxIdf`). Ini membuat kata asing memperberat total bobot query, sehingga skor Overlap/Cosine jatuh drastis ketika dicocokkan dengan hadits asli yang tidak memiliki kata tersebut.
-8. Hitung **Cosine Similarity** antara vektor query dan vektor dokumen (Pencocokan Global).
-9. Hitung **Overlap (Coverage) Similarity** untuk mengecek seberapa persen token query tertutupi oleh dokumen dokumen tanpa menghukum panjang dokumen (Pencocokan Substring parsial).
-10. **Skor akhir** = kombinasi tertimbang: `(Cosine × 0.40) + (Overlap × 0.60)`.
-11. **Substring Boost**: Jika matan query merupakan substring matan dokumen (atau sebaliknya), skor diboost minimal 0.95.
-12. Urutkan hasil descending, ambil top 5.
-13. Tentukan tier NLP: `found` (>0.80), `review` (≥0.50), atau `notfound` (<0.50).
-
-### Lapisan 2: Sistem Pakar Forward Chaining (knowledge_base.js)
-
-Setelah lapisan NLP menghasilkan tier dan skor, hasilnya dimasukkan ke **mesin inferensi forward chaining** di fungsi `evaluateExpertLayer()`.
-
-#### Apa itu Forward Chaining?
+### Apa itu Forward Chaining?
 
 Forward chaining adalah metode inferensi yang bekerja **dari fakta menuju kesimpulan** (data-driven):
 
@@ -63,241 +29,230 @@ FAKTA AWAL (input)  →  EVALUASI ATURAN (rules diperiksa satu per satu)  →  K
 
 Berbeda dengan backward chaining yang memulai dari hipotesis dan mencari bukti, forward chaining **mengevaluasi seluruh aturan secara berurutan** terhadap fakta yang ada, lalu **menyimpulkan** status akhir berdasarkan aturan yang terpicu (fired).
 
-#### Fakta Awal (Working Memory)
+### Komponen Sistem Pakar
 
-Fakta awal yang menjadi input forward chaining dikemas dalam objek `ctx`:
+Sesuai dengan arsitektur standar Sistem Pakar, HadistSystemChecker memiliki 3 komponen utama:
 
-| Fakta (ctx) | Sumber | Keterangan |
-|-------------|--------|------------|
-| `queryText` | Input user | Teks asli yang dimasukkan pengguna |
-| `queryMatan` | `extractMatan()` | Matan yang sudah diekstrak dari teks (tanpa sanad) |
-| `bestMatch` | NLP layer | Objek hadits dengan skor tertinggi dari database |
-| `topMatches` | NLP layer | Array 5 hadits teratas beserta skor |
-| `overallTier` | `getStatus()` | Tier NLP: `'found'` / `'review'` / `'notfound'` |
+| Komponen | Implementasi | Keterangan |
+|----------|-------------|------------|
+| **Knowledge Base** (Basis Pengetahuan) | Array `EXAGGERATED_REWARD_PATTERNS`, `MODERN_LANGUAGE_PATTERNS`, `QURAN_CONTRADICTION_PATTERNS`, dll. di `app.js` | Berisi fakta-fakta dan pola yang menjadi dasar pengetahuan sistem |
+| **Inference Engine** (Mesin Inferensi) | Fungsi `evaluateExpertLayer()` dan `evaluateInteractiveQuestionnaire()` di `app.js` | Mekanisme Forward Chaining yang mengevaluasi aturan R1–R13 secara berurutan |
+| **User Interface** (Antarmuka Pengguna) | `index.html` + fungsi rendering di `app.js` | Input teks, tampilan hasil analisis, dan kuesioner interaktif |
 
-#### Alur Forward Chaining (Langkah demi Langkah)
+---
+
+## 3) Alur Kerja Utama (3 Tahap)
+
+### Tahap 1: Pengumpulan Fakta (Fact Gathering)
+
+Fungsi `gatherFacts()` menerima teks input user, menormalisasi teksnya (lowercase, hapus tanda baca), lalu mencocokkannya dengan 7 kategori pola di Knowledge Base:
+
+| Fakta (Qarinah) | Array Pola | Contoh Pattern |
+|-----------------|-----------|----------------|
+| `hasExaggeratedReward` | `EXAGGERATED_REWARD_PATTERNS` (15 pola) | "pahala tujuh puluh nabi", "malaikat kelelahan mencatat" |
+| `hasModernLanguage` | `MODERN_LANGUAGE_PATTERNS` (30+ pola) | "whatsapp", "pesawat terbang", "demokrasi" |
+| `hasQuranContradiction` | `QURAN_CONTRADICTION_PATTERNS` (10 pola) | "dosa ditanggung anak", "kiamat akan terjadi pada tahun" |
+| `hasFabricatedThreat` | `FABRICATED_THREAT_PATTERNS` (10 pola) | "sebarkan atau sial", "pasti masuk neraka" |
+| `hasBidahPractice` | `BID_AH_PRACTICE_PATTERNS` (11 pola) | "shalat raghaib", "puasa nisfu sya'ban" |
+| `hasPopularQuotes` | `POPULAR_QUOTES_AND_MEDICAL_HOAX` (8 pola) | "cinta tanah air sebagian dari iman" |
+| `hasRegexRedFlag` | `REGEX_RED_FLAGS` (4 pola regex) | `/tuntutlah? ilmu walau ke negeri cina/i` |
+
+Output: Objek berisi 7 fakta boolean yang merepresentasikan qarinah yang ditemukan pada teks.
+
+### Tahap 2: Evaluasi Aturan (Forward Chaining, R1–R8)
+
+Fungsi `evaluateExpertLayer()` mengevaluasi aturan R1–R8 secara **berurutan** berdasarkan fakta yang dikumpulkan di Tahap 1. Aturan dengan severity lebih tinggi mendominasi aturan yang lebih rendah.
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  FAKTA AWAL: ctx (queryText, queryMatan, skor,  │
-│              bestMatch, overallTier)             │
+│  FAKTA AWAL: hasil gatherFacts()                │
+│  (7 fakta boolean dari scan regex/keyword)      │
 └──────────────────────┬──────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
-│  R0: BASE RULE — Tentukan status awal dari tier  │
-│      NLP (found → MAQBUL, review → TAHQIQ,       │
-│      notfound → SYUBHAT)                         │
+│  R1: IF hasExaggeratedReward = TRUE              │
+│      THEN status = KUAT_INDIKASI_MAUDHU          │
+│      (Mubalaghah Fasidah / Pahala Berlebihan)    │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
-│  R1: EXAGGERATED_REWARD — Cek pola janji pahala  │
-│      berlebihan. Jika cocok → KUAT_INDIKASI_MAUDHU│
+│  R2: IF hasFabricatedThreat = TRUE               │
+│      THEN status = KUAT_INDIKASI_MAUDHU          │
+│      (Tahwil al-Kadzib / Ancaman Dibuat-buat)    │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
-│  R2: BID'AH_PRACTICE — Cek pola amalan bid'ah   │
-│      /amalan khusus kontroversial. Jika cocok    │
-│      → LEMAH_CENDERUNG_TIDAK_SHOHIH (perlu       │
-│      tahqiq ulama)                               │
+│  R3: IF hasQuranContradiction = TRUE             │
+│      THEN status = KUAT_INDIKASI_MAUDHU          │
+│      (Mukhalafah lil-Qur'an / Kontradiksi Nast)  │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
-│  R3: OVER_THREAT — Cek pola ancaman tidak        │
-│      proporsional (6 pola) + tier == notfound.   │
-│      Jika cocok → LEMAH/TIDAK_SHAHIH             │
+│  R4: IF hasModernLanguage = TRUE                 │
+│      THEN status = KUAT_INDIKASI_MAUDHU          │
+│      (Tarikhiyyah al-Lafz / Istilah Modern)       │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
-│  R4: ADJUST_CONFIDENCE — Jika tier == found tapi │
-│      skor < 0.85, turunkan confidence band       │
-│      dari 'strong' ke 'medium'                   │
+│  R5: IF hasBidahPractice = TRUE                  │
+│      THEN status = LEMAH_CENDERUNG_TIDAK_SHOHIH  │
+│      (Ma Laa Asla Lahu fil Ibadah)                │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
-│  R5: QURAN_CONTRADICTION — Cek pola matan yang   │
-│      bertentangan dengan prinsip Al-Quran yang   │
-│      qath'i (16 pola). Jika cocok → MAUDHU       │
+│  R6: IF hasPopularQuotes = TRUE                  │
+│      THEN status = LA_ASLA_LAHU                  │
+│      (Masyhur 'ala Alsinatun-Naas / Slogan Populer) │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
-│  R6: POPULAR_QUOTES — Cek pepatah/hoaks medis    │
-│      populer yang sering diklaim hadits. Jika    │
-│      teks tidak ditemukan di database →          │
-│      LA_ASLA_LAHU, jika hanya kemiripan sedang   │
-│      → PERLU_TAHQIQ_LANJUT.                      │
+│  R7: IF hasRegexRedFlag = TRUE                   │
+│      THEN status = KUAT_INDIKASI_MAUDHU          │
+│      (Shorih al-Kadzib / 11 Pola Regex Spesifik)  │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
-│  R7: MODERN_LANGUAGE — Cek pola bahasa/istilah   │
-│      modern di matan (bukan komentar). Jika      │
-│      cocok → KUAT_INDIKASI_MAUDHU               │
+│  R8: IF (tidak ada aturan R1-R7 yang terpicu)    │
+│      THEN status = REQUIRES_MANUAL_QUESTIONNAIRE │
+│      → Lanjut ke Tahap 3 (Kuesioner M1-M5)       │
 └──────────────────────┬───────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────┐
-│  R8: REGEX_RED_FLAGS — Cek pola redaksi khusus   │
-│      via regex. Jika tidak ada padanan di        │
-│      database → KUAT_INDIKASI_MAUDHU, jika ada   │
-│      kemiripan → LEMAH_CENDERUNG_TIDAK_SHOHIH.   │
-└──────────────────────┬───────────────────────────┘
-                       ▼
-┌──────────────────────────────────────────────────┐
-│  KESIMPULAN AWAL OTOMATIS                        │
-└──────────────────────┬───────────────────────────┘
-                       ▼
-┌──────────────────────────────────────────────────┐
-│  KUESIONER PAKAR MANUAL (Diaktifkan pada Frontend│
-│  jika skor < 0.60 dan TIDAK ada Red-Flag dari R1-R8)│
-│  M1: Janji/Ancaman berlebihan (Al-Mujazafah)     │
-│  M2: Penentuan spesifik Kiamat/Ghaib             │
-│  M3: Politis / Celaan suku spesifik              │
-│  M4: Bertentangan Akal Sehat / Fakta Empiris     │
-│  M5: Bahasa Pasaran / Ancaman Berantai (Rikakah) │
-└──────────────────────┬───────────────────────────┘
-                       ▼
-┌──────────────────────────────────────────────────┐
-│  R8(m): IF M5="YA" → HOAKS_BUKAN_HADIS           │
-│  R9   : IF M1="YA" → KUAT_INDIKASI_MAUDHU        │
-│  R10  : IF M2="YA" OR M4="YA" → MAUDHU           │
-│  R11  : IF M3="YA" → INDIKASI_MAUDHU_POLITIS     │
-│  R12  : IF All="TIDAK" → STATUS_TIDAK_DIKENALI   │
-└──────────────────────┬───────────────────────────┘
-                       ▼
-┌──────────────────────────────────────────────────┐
-│  KESIMPULAN AKHIR (Pusat Analisis):              │
-│  - expertStatus (kode status)                    │
+│  KESIMPULAN OTOMATIS:                            │
+│  - expertStatus (kode status akhir)              │
 │  - expertLabel (label deskriptif)                │
 │  - reasons[] (daftar alasan keputusan)           │
+│  - rulesFired[] (daftar aturan yang terpicu)     │
+│  - factsGathered (objek fakta boolean)           │
 └──────────────────────────────────────────────────┘
 ```
 
-#### Tabel Lengkap Aturan Sistem Pakar (ringkas)
+**Mekanisme Severity:** Setiap status memiliki tingkat keparahan (severity). Jika beberapa aturan terpicu bersamaan, status dengan severity tertinggi yang mendominasi:
 
-| Kode | Nama Aturan | Kondisi IF (Premis) | Aksi THEN (Kesimpulan) | Catatan |
-|------|-------------|---------------------|------------------------|---------|
-| R0 | BASE_RULE | Tier NLP = found / review / notfound | Status awal: MAQBUL / TAHQIQ / SYUBHAT | Basis dari skor NLP |
-| R1 | EXAGGERATED_REWARD | Matan mengandung pola janji pahala berlebihan | KUAT_INDIKASI_MAUDHU (confidence: strong) | Ciri khas maudhu |
-| R2 | BID'AH_PRACTICE | Matan menyebut amalan bid'ah | LEMAH_CENDERUNG_TIDAK_SHOHIH (confidence: medium) | Tidak langsung memvonis maudhu |
-| R3 | OVER_THREAT | Matan mengandung ancaman tidak proporsional DAN tier = notfound | LEMAH_CENDERUNG_TIDAK_SHOHIH (confidence: medium) | Ancaman berlebihan |
-| R4 | ADJUST_CONFIDENCE | Tier = found TAPI skor < 0.85 | Turunkan confidence band | Menjaga kehati-hatian |
-| R5 | QURAN_CONTRADICTION | Matan bertentangan dengan prinsip Al-Quran yang qath'i | KUAT_INDIKASI_MAUDHU (confidence: strong) | Hadits shahih tidak bertentangan dengan Qur'an |
-| R6 | POPULAR_QUOTES | Teks mirip pepatah/hoaks medis populer | LA_ASLA_LAHU / PERLU_TAHQIQ_LANJUT |  |
-| R7 | MODERN_LANGUAGE | Matan mengandung istilah modern (anakronistik) | KUAT_INDIKASI_MAUDHU (confidence: strong) | Hanya diterapkan pada matan murni |
-| R8 | REGEX_RED_FLAGS | Pola redaksi khusus via regex | KUAT_INDIKASI_MAUDHU / LEMAH_CENDERUNG_TIDAK_SHOHIH | |
-| R8(m)| RIKAKAH_AL_LAFZ | M5="YA" (Bahasa sangat rancu / pesan berantai) | HOAKS_BUKAN_HADIS | Kuesioner Manual Frontend |
-| R9 | AL_MUJAZAFAH | M1="YA" (Janji pahala/ancaman fantastis berlebihan) | KUAT_INDIKASI_MAUDHU | Kuesioner Manual Frontend |
-| R10 | CONTRADICTION | M2="YA" atau M4="YA" (Hal ghaib penentuan waktu/Fakta empiris) | KUAT_INDIKASI_MAUDHU | Kuesioner Manual Frontend |
-| R11 | FANATIC_POLITICAL | M3="YA" (Pujian pujian/celaan rasis) | INDIKASI_MAUDHU_POLITIS | Kuesioner Manual Frontend |
-| R12 | UNKNOWN_MANUAL | Semua M="TIDAK" | STATUS_TIDAK_DIKENALI | Kuesioner Manual Frontend |
+| Severity | Status |
+|----------|--------|
+| 6 | HOAKS_BUKAN_HADIS |
+| 5 | KUAT_INDIKASI_MAUDHU |
+| 4 | INDIKASI_MAUDHU_POLITIS |
+| 3 | LA_ASLA_LAHU |
+| 2 | LEMAH_CENDERUNG_TIDAK_SHOHIH |
+| 1 | PERLU_TAHQIQ_LANJUT |
+| 0 | REQUIRES_MANUAL_QUESTIONNAIRE |
 
-#### Detail Aturan R5: Deteksi Kontradiksi dengan Al-Quran
+### Tahap 3: Kuesioner Interaktif (Fallback Manual, R9–R13)
 
-Dasar: **Ulama sepakat bahwa hadits shahih mustahil bertentangan dengan Al-Quran.** Jika matan mengandung klaim yang bertentangan dengan ayat Al-Quran yang sudah qath'i (jelas dan pasti), maka itu merupakan indikasi kuat bahwa hadits tersebut palsu (maudhu).
+Jika Tahap 2 tidak menemukan red-flag otomatis (R8 terpicu), frontend menampilkan **Kuesioner M1–M5** yang harus dijawab oleh pengguna berdasarkan observasi manual terhadap teks:
 
-Pola yang dideteksi antara lain:
+| Kode | Pertanyaan (Premis) | Jawaban "YA" → Kesimpulan |
+|------|---------------------|--------------------------|
+| M1 | Apakah teks memuat janji pahala fantastis atau ancaman mengerikan untuk amalan sepele? | R10: KUAT_INDIKASI_MAUDHU (Al-Mujazafah) |
+| M2 | Apakah teks menentukan waktu spesifik kiamat/bencana besar? | R11: KUAT_INDIKASI_MAUDHU (Ghaib) |
+| M3 | Apakah teks berisi pujian/celaan rasis terhadap suku/kota tertentu? | R12: INDIKASI_MAUDHU_POLITIS |
+| M4 | Apakah isi teks bertentangan dengan akal sehat/fakta empiris? | R11: KUAT_INDIKASI_MAUDHU (Empiris) |
+| M5 | Apakah susunan kalimat terasa modern/ancaman berantai/rancu? | R9: HOAKS_BUKAN_HADIS (Rikakah al-Lafz) |
 
-- **Bertentangan dengan QS. Al-An'am:164** ("Tidaklah seseorang menanggung dosa orang lain"):
-  - "anak menanggung dosa orang tua", "dosa bapak ditanggung anak", "istri menanggung dosa suami", dll.
+Jika semua dijawab "TIDAK" → R13: STATUS_TIDAK_DIKENALI (butuh pakar manusia).
 
-- **Bertentangan dengan QS. Al-An'am:160** (Kebaikan dilipatkan 10×, bukan tak terbatas):
-  - "satu kebaikan dibalas sejuta", "pahala tak terhingga", "pahala yang tidak terbatas"
-
-- **Bertentangan dengan QS. Al-Baqarah:284** (Kehendak Allah yang mutlak):
-  - "pasti masuk surga tanpa hisab", "dijamin masuk surga", "allah wajib mengampuni"
-
-- **Bertentangan dengan QS. An-Nisa:48** (Syirik tidak diampuni):
-  - "syirik diampuni", "musyrik diampuni"
-
-#### Detail Aturan R6: Deteksi Bahasa/Istilah Modern (Anakronistik)
-
-Dasar: **Hadits adalah ucapan, perbuatan, atau taqrir Nabi ﷺ yang hidup di abad ke-7 Masehi.** Tidak mungkin hadits shahih mengandung istilah, teknologi, atau konsep yang baru dikenal ratusan tahun kemudian. Keberadaan istilah modern dalam matan merupakan indikasi kuat fabrikasi.
-
-Kategori pola yang dideteksi:
-
-- **Teknologi modern**: televisi, internet, komputer, handphone, smartphone, media sosial, whatsapp, facebook, instagram, youtube, twitter, email, website, aplikasi, laptop, wifi
-- **Konsep politik/ekonomi modern**: demokrasi, komunisme, sosialisme, kapitalisme, partai politik, pemilu, presiden republik, bank sentral, saham, investasi online
-- **Istilah geografis/negara modern**: amerika, indonesia, malaysia, australia
-- **Ilmu pengetahuan modern**: vaksin, virus corona, covid, bakteri, antibiotik, operasi plastik, transplantasi
-- **Transportasi modern**: pesawat terbang, mobil, motor, kereta api
+**Urutan evaluasi prioritas:** R9 (M5) → R10 (M1) → R11 (M2/M4) → R12 (M3) → R13 (semua TIDAK).
 
 ---
 
-## 3) Penjelasan Fungsi Algoritma
+## 4) Detail Kategori Pola Red-Flag
 
-### Jaro-Winkler (Token Typo Correction — Tahap Preprocessing)
-- **Tujuan**: Koreksi kata yang salah ketik pada tahap Pra-Pemrosesan. **Tidak ikut menghitung skor kemiripan akhir.**
-- **Cara kerja**: Membandingkan token query dengan vocabulary corpus, pilih skor tertinggi di atas threshold (≥ 0.85). Karena dirancang dengan sistem *Prefix Bonus*, Jaro-Winkler sangat brilian mendeteksi *typo* manusia.
-- **Posisi**: Bekerja setelah `preprocessText()` dan sebelum `vectorize()`. Output-nya adalah array token yang sudah dikoreksi ejaannya.
+### R1: Janji Pahala Berlebihan (*Mubalaghah Fasidah*)
 
-### TF-IDF (Pemberi Bobot Kata Kunci)
-- Mengubah teks menjadi vektor angka berbobot.
-- **TF (Term Frequency)** menilai seberapa sering kata muncul dalam dokumen.
-- **IDF (Inverse Document Frequency)** menurunkan bobot kata yang terlalu umum dan menaikkan kata yang unik.
+Pola yang menunjukkan janji pahala yang sangat tidak rasional, yang merupakan ciri khas hadits maudhu' menurut ulama mustalah hadits (seperti Ibnu Qayyim di *Al-Manar al-Munif*).
 
-### Cosine Similarity (Pengukur Kemiripan Semantik Global)
-- Mengukur sudut antara vektor query dan vektor dokumen. Digunakan untuk pencocokan 1-to-1 dokumen lengkap (*Global Alignment*).
-- Cenderung menghukum (memberi penalti poin) dokumen target yang terlalu panjang jika query cukup pendek.
+Contoh: "mendapatkan pahala tujuh puluh nabi", "pahalanya seperti haji seribu kali", "minum kopi masuk surga"
 
-### Overlap / Coverage Similarity (Pengukur Persentase Substring)
-- Dibuat khusus (Custom) untuk menoleransi matan acuan yang panjang.
-- Hanya mengecek: "Berapa banyak dari Term input user yang termuat di dalam Term dokumen?".
-- Menghindari turunnya skor di The Cosine Similarity akibat perbedaan rasio ekstrim panjang kalimat antara kata kunci pengguna dan hadits aslinya.
-- Pembobotan 60% Overlap dan 40% Cosine memberikan hasil optimal untuk memfasilitasi pencarian sub-kalimat/potongan *(Substring Match)*.
+### R2: Ancaman Tidak Proporsional / Hoaks Berantai (*Tahwil al-Kadzib*)
 
-### OOV Penalty (Hukuman Kata Asing)
-- Kata yang tidak ada di vocabulary corpus (Out-of-Vocabulary) diberi bobot IDF maksimal (`_maxIdf = log(N)`) alih-alih diabaikan (bernilai 0).
-- Tujuan: Mencegah manipulasi skor oleh kata sampah/makian/typo parah. Tanpa fitur ini, kata asing akan dibuang dan skor menjadi tinggi palsu karena hanya 1 kata valid yang dicocokkan.
-- Contoh: Input "kata_kasar agama kata_kasar" → tanpa OOV Penalty skornya 0.9 (palsu tinggi), dengan OOV Penalty skornya < 0.20 (benar).
+Pola ancaman yang tidak wajar atau khas pesan berantai (chain message/hoaks digital) yang sering beredar demi menakut-nakuti awam.
 
-### Representasi Token
-- Saat ini sistem hanya memakai token kata tunggal (unigram) setelah preprocessing dan koreksi typo.
-- Informasi konteks frasa ditangkap lewat kombinasi distribusi kata (TF-IDF) dan gabungan skor Cosine + Overlap, tanpa perlu membentuk n-gram eksplisit.
+Contoh: "barangsiapa yang tidak menyebarkan pesan ini", "sebarkan atau sial", "pasti masuk neraka"
 
-### Substring Boost
-- Jika query matan ada di dalam matan dokumen (atau sebaliknya), skor ditingkatkan ke minimal 0.95.
-- Membantu kasus kutipan pendek yang merupakan bagian dari matan panjang.
+### R3: Kontradiksi dengan Prinsip Al-Quran (*Mukhalafah lil-Qur'an*)
+
+Dasar: **Ulama sepakat bahwa hadits shahih mustahil bertentangan dengan Al-Quran.**
+
+Pola berdasarkan ayat Al-Quran yang sudah qath'i:
+- **QS. Al-An'am: 164** — "Setiap jiwa menanggung dosanya sendiri" → Mendeteksi klaim transfer dosa (contoh: anak zina tidak masuk surga 7 turunan).
+- **QS. Luqman: 34 & Al-An'am: 59** — "Ilmu ghaib hanya milik Allah" → Mendeteksi prediksi presisi waktu kiamat.
+- **QS. Al-Hujurat: 13** — Kemuliaan berdasarkan ketakwaan → Mendeteksi jaminan keselamatan mutlak berdasarkan nama/keturunan.
+
+### R4: Bahasa/Istilah Modern (Anakronistik / *Tarikhiyyah al-Lafz*)
+
+Dasar: **Hadits adalah ucapan Nabi ﷺ di abad 7 M.** Tidak mungkin mengandung istilah yang baru dikonstruksi peradaban modern.
+
+Kategori: Teknologi (whatsapp, kripto, wifi), politik modern (demokrasi, sekularisme), geografis (indonesia, amerika), medis (vaksin, paracetamol, operasi plastik), dan mistis modern (zodiak, ramalan bintang).
+
+### R5: Amalan Bid'ah / Kontroversial (*Ma Laa Asla Lahu fil Ibadah*)
+
+Sebagian kaum mengarang hadits untuk melegitimasi mu'amalah atau ritual yang mereka ada-adakan. Status: minimal lemah (dha'if), perlu tahqiq lanjutan.
+
+Contoh: "shalat hajat seribu rakaat", "puasa nisfu sya'ban", "shalat rebo wekasan"
+
+### R6: Pepatah/Mitos Populer yang Diklaim Hadits (*Masyhur 'ala Alsinatun-Naas*)
+
+Pepatah Arab, nasihat tabib, filosof, atau mitos populer yang seiring waktu lisan orang awam membajaknya dan menyandarkannya kepada Nabi ﷺ (merujuk *Kasyf al-Khafa'* karya Al-Ajlouni).
+
+Contoh: "cinta tanah air sebagian dari iman", "kebersihan pangkal kesehatan", "surga di telapak kaki ibu".
+
+### R7: Pola Regex Spesifik (*Shorih al-Kadzib*)
+
+Sistem memiliki **11 aturan pendeteksian pola regex dinamis** untuk teks-teks parah yang secara mutlak sudah di-tahdzir ulama.
+
+1. Hadits menuntut ilmu ke China
+2. Kebersihan sebagian dari iman (Bukan hadits, yang shahih: _Ath-Thuhuru syathrul iiman_)
+3. Tidur saat puasa adalah ibadah
+4. Awal ramadhan rahmat, pertengahan ampunan (Munkar)
+5. Klaim spesifik bacaan surat tertentu (ribuan kali baca Yasin/Al-Mulk/Al-Waqi'ah)
+6. Ancaman musiman: *"Barangsiapa memberitahu masuk ramadhan/rajab neraka diharamkan"*
+7. Nasehat tabib Al-Harits bin Kaladah: *"Makan sebelum lapar, berhenti sebelum kenyang"*
+8. Ikhtilafu ummati rahmat (Perbedaan umat adalah rahmat)
+9. *Hubbul wathan minal iman* (Cinta negara sebagian dari iman)
+10. *"Bekerjalah seakan hidup selamanya"* (Atsar Abdullah bin Amr, bukan hadits marfu')
+11. Legenda palsu 15 siksaan meninggalkan shalat.
 
 ---
 
-## 4) Status dan Interpretasi Skor
+## 5) Status dan Interpretasi Hasil
 
-### Status NLP (Lapisan 1)
-| Skor | Status | Interpretasi |
-|------|--------|--------------|
-| > 0.80 | SHAHIH | Ditemukan padanan matan dengan kemiripan tinggi dalam database |
-| ≥ 0.50 | PERLU_REVIEW | Kemiripan sedang, perlu verifikasi lanjut |
-| < 0.50 | TIDAK_DITEMUKAN | Tidak ditemukan padanan, terindikasi palsu/tidak tercatat |
-
-### Status Sistem Pakar (Lapisan 2)
 | Status | Label | Artinya |
 |--------|-------|---------|
-| INSYAALLAH_MAQBUL | InsyaAllah Maqbul | Ditemukan dalam sumber rujukan, tidak ada red flag signifikan |
-| PERLU_TAHQIQ_LANJUT | Perlu Tahqiq Lanjut | Kemiripan sedang/ada indikasi populer, butuh verifikasi ulama |
-| SYUBHAT_TIDAK_DITEMUKAN | Syubhat | Tidak ditemukan, patut dicurigai |
-| LEMAH_CENDERUNG_TIDAK_SHOHIH | Lemah | Mengandung sinyal kelemahan atau riwayat bermasalah |
-| LA_ASLA_LAHU | La Asla Lahu | Teks sangat mirip pepatah/mitos populer yang tidak dikenal sebagai hadits dalam sumber rujukan |
-| KUAT_INDIKASI_MAUDHU | Kuat Indikasi Maudhu | Red flag kuat terpicu (pahala berlebihan, kontradiksi Qur'an, bahasa modern, ancaman/hoaks spesifik) |
+| KUAT_INDIKASI_MAUDHU | Kuat Indikasi Maudhu' | Red-flag kuat terpicu (pahala berlebihan, kontradiksi Quran, bahasa modern, ancaman hoaks) |
+| HOAKS_BUKAN_HADIS | Hoaks / Bukan Hadis | Teks teridentifikasi sebagai hoaks/bukan hadits (bahasa sangat rancu/modern) |
+| INDIKASI_MAUDHU_POLITIS | Indikasi Maudhu' (Politis) | Matan terindikasi fabrikasi politik/fanatisme golongan |
+| LEMAH_CENDERUNG_TIDAK_SHOHIH | Indikasi Lemah / Kontroversial | Mengandung sinyal kelemahan (amalan bid'ah, kontroversial) |
+| LA_ASLA_LAHU | La Asla Lahu | Teks mirip pepatah/mitos populer, bukan hadits |
+| REQUIRES_MANUAL_QUESTIONNAIRE | Butuh Evaluasi Manual | Tidak ada red-flag otomatis, perlu kuesioner M1–M5 |
+| STATUS_TIDAK_DIKENALI | Status Tidak Dikenali | Tidak ada indikasi palsu maupun shahih. Butuh pakar manusia |
 
 ---
 
-## 5) Ringkasan Alur Singkat
+## 6) Fungsi Utama di `app.js`
+
+| Fungsi | Peran | Input → Output |
+|--------|-------|----------------|
+| `normalizeText(text)` | Normalisasi teks | String → string lowercase tanpa tanda baca |
+| `containsAny(text, patterns)` | Pencocokan keyword | String + array pola → boolean |
+| `matchRegexFlags(text, regexFlags)` | Pencocokan regex | String + array regex → array issue yang cocok |
+| `gatherFacts(inputText)` | **Tahap 1:** Pengumpulan Fakta | String input → objek 7 fakta boolean |
+| `evaluateExpertLayer(inputText)` | **Tahap 2:** Forward Chaining R1–R8 | String input → hasil inferensi (status + alasan + rules) |
+| `evaluateInteractiveQuestionnaire(answers)` | **Tahap 3:** Kuesioner R9–R13 | Objek {m1..m5} boolean → hasil inferensi manual |
+
+---
+
+## 7) Ringkasan Alur Singkat
 
 ```
 Input teks user
-  → Normalisasi
-  → Extract matan (pisahkan dari sanad)
-  → Preprocess (lowercase, hapus tanda baca, stopwords)
-  → Typo correction (Jaro-Winkler per token, HANYA preprocessing)
-  → TF-IDF vectorization + OOV Penalty
-  → Cosine Similarity (bobot 40%)
-  → Overlap Coverage Similarity (bobot 60%)
-  → Substring Boost
-  → Ranking + Tier NLP (found / review / notfound)
-  → Forward Chaining Sistem Pakar:
-      R0: Base Rule (tier → status awal)
-      R1-R8: Aturan otomatis (pahala berlebihan, bid'ah, ancaman, kontradiksi Quran, bahasa modern, regex, dsb)
-  → Kesimpulan Awal Otomatis
-  → JIKA skor < 0.60 & Tiada RedFlag Otomatis:
-      Kuesioner Pakar Manual (M1-M5) → Memicu R8m-R12
-  → Kesimpulan Akhir Gabungan: status pakar + confidence + alasan + rules fired
+  → normalizeText() (lowercase, hapus tanda baca)
+  → gatherFacts() (scan 7 array pola → 7 fakta boolean)
+  → evaluateExpertLayer() (Forward Chaining R1–R8)
+      → Jika ada rule terpicu → Kesimpulan Otomatis
+      → Jika tidak ada rule terpicu (R8):
+          → Tampilkan Kuesioner M1–M5
+          → evaluateInteractiveQuestionnaire() (R9–R13)
+  → Kesimpulan Akhir: status + label + alasan + rules fired
 ```
-
