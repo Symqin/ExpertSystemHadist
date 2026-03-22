@@ -86,55 +86,8 @@
                 <p class="text-sm text-gray-700 mt-1">Sistem pakar tidak menemukan red-flag otomatis pada teks ini. Untuk evaluasi lebih lanjut, mohon observasi kejanggalan pada teks dan jawab pertanyaan-pertanyaan berikut:</p>
             </div>
             
-            <form id="factGatheringForm" class="space-y-4">
-                <!-- M1 -->
-                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <p class="text-sm font-semibold text-gray-800 mb-2">M1. Apakah teks ini memuat janji pahala yang fantastis atau ancaman yang sangat mengerikan untuk amalan yang sepele?</p>
-                    <div class="flex space-x-6">
-                        <label class="flex items-center cursor-pointer"><input type="radio" name="m1" value="true" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4"> Ya</label>
-                        <label class="flex items-center cursor-pointer"><input type="radio" name="m1" value="false" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4" checked> Tidak</label>
-                    </div>
-                </div>
-                <!-- M2 -->
-                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <p class="text-sm font-semibold text-gray-800 mb-2">M2. Apakah teks ini menentukan waktu, hari, atau tahun spesifik akan terjadinya kiamat atau bencana besar?</p>
-                    <div class="flex space-x-6">
-                        <label class="flex items-center cursor-pointer"><input type="radio" name="m2" value="true" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4"> Ya</label>
-                        <label class="flex items-center cursor-pointer"><input type="radio" name="m2" value="false" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4" checked> Tidak</label>
-                    </div>
-                </div>
-                <!-- M3 -->
-                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <p class="text-sm font-semibold text-gray-800 mb-2">M3. Apakah teks ini berisi pujian atau celaan yang sangat berlebihan dan rasis terhadap suatu kabilah, suku, atau nama kota tertentu?</p>
-                    <div class="flex space-x-6">
-                        <label class="flex items-center cursor-pointer"><input type="radio" name="m3" value="true" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4"> Ya</label>
-                        <label class="flex items-center cursor-pointer"><input type="radio" name="m3" value="false" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4" checked> Tidak</label>
-                    </div>
-                </div>
-                <!-- M4 -->
-                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <p class="text-sm font-semibold text-gray-800 mb-2">M4. Apakah isi teks ini secara nyata bertentangan dengan akal sehat, fakta sejarah yang pasti, atau ilmu medis dasar?</p>
-                    <div class="flex space-x-6">
-                        <label class="flex items-center cursor-pointer"><input type="radio" name="m4" value="true" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4"> Ya</label>
-                        <label class="flex items-center cursor-pointer"><input type="radio" name="m4" value="false" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4" checked> Tidak</label>
-                    </div>
-                </div>
-                <!-- M5 -->
-                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <p class="text-sm font-semibold text-gray-800 mb-2">M5. Apakah susunan kalimatnya terasa seperti bahasa pasaran modern, mengandung ancaman berantai (misal: "sebarkan atau sial"), atau tata bahasanya sangat rancu?</p>
-                    <div class="flex space-x-6">
-                        <label class="flex items-center cursor-pointer"><input type="radio" name="m5" value="true" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4"> Ya</label>
-                        <label class="flex items-center cursor-pointer"><input type="radio" name="m5" value="false" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4" checked> Tidak</label>
-                    </div>
-                </div>
-
-                <div class="mt-5 flex justify-end">
-                    <button type="submit" id="submitFactGatheringBtn" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 px-6 rounded-xl transition-all flex items-center shadow-md">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        Evaluasi Pakar Sekarang
-                    </button>
-                </div>
-            </form>
+            <!-- Pertanyaan M1-M5 di-render dinamis dari FACT_QUESTIONS (fact_evaluator.js) -->
+            <form id="factGatheringForm" class="space-y-4"></form>
         </section>
 
         <!-- Results Section — Panel Analisis Pakar -->

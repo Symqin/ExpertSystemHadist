@@ -1,21 +1,52 @@
-// UI LOGIC
-// =============================================================================
+/**
+ * =============================================================================
+ * UI LOGIC — Controller antarmuka pengguna
+ * Menggunakan FACT_QUESTIONS (dari fact_evaluator.js) untuk render form dinamis.
+ * =============================================================================
+ */
 
 document.addEventListener('DOMContentLoaded', () => {
   const searchForm = document.getElementById('searchForm');
   const hadithInput = document.getElementById('hadithInput');
-  const searchBtn = document.getElementById('searchBtn');
   const errorMessage = document.getElementById('errorMessage');
   const errorText = document.getElementById('errorText');
   const resultsSection = document.getElementById('resultsSection');
   const expertSummary = document.getElementById('expertSummary');
   const factGatheringSection = document.getElementById('factGatheringSection');
   const factGatheringForm = document.getElementById('factGatheringForm');
-  const submitFactGatheringBtn = document.getElementById('submitFactGatheringBtn');
 
   let currentExpertData = null;
 
-  // Listener untuk tombol contoh
+  // ── Render form penelusuran fakta dari FACT_QUESTIONS (data-driven) ──
+  function renderFactGatheringForm() {
+    if (!factGatheringForm || typeof FACT_QUESTIONS === 'undefined') return;
+    factGatheringForm.innerHTML = FACT_QUESTIONS.map(q => `
+      <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <p class="text-sm font-semibold text-gray-800 mb-2">${q.text}</p>
+        <div class="flex space-x-6">
+          <label class="flex items-center cursor-pointer">
+            <input type="radio" name="${q.id}" value="true" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4"> Ya
+          </label>
+          <label class="flex items-center cursor-pointer">
+            <input type="radio" name="${q.id}" value="false" class="mr-2 text-teal-600 focus:ring-teal-500 w-4 h-4" checked> Tidak
+          </label>
+        </div>
+      </div>
+    `).join('') + `
+      <div class="mt-5 flex justify-end">
+        <button type="submit" id="submitFactGatheringBtn"
+          class="bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 px-6 rounded-xl transition-all flex items-center shadow-md">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          Evaluasi Pakar Sekarang
+        </button>
+      </div>
+    `;
+  }
+  renderFactGatheringForm();
+
+  // ── Listener tombol contoh ───────────────────────────────────────────
   document.querySelectorAll('.example-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       hadithInput.value = e.target.textContent;
@@ -23,20 +54,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ── Form Submit: Evaluasi Otomatis (langsung di browser) ────────────
+  // ── Form Submit: Evaluasi Otomatis ───────────────────────────────────
   searchForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const text = hadithInput.value.trim();
     if (!text) return;
 
-    // Reset UI
     errorMessage.classList.add('hidden');
     resultsSection.classList.add('hidden');
     expertSummary.innerHTML = '';
     expertSummary.classList.add('hidden');
     if (factGatheringSection) factGatheringSection.classList.add('hidden');
 
-    // Jalankan Sistem Pakar langsung di browser
     const result = evaluateExpertLayer(text);
 
     currentExpertData = {
@@ -57,23 +86,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  function showError(message) {
-    errorText.textContent = message;
-    errorMessage.classList.remove('hidden');
-  }
-
-  // ── Penelusuran Fakta (M1-M5) — langsung di browser ─────────────
+  // ── Penelusuran Fakta (M1-M5) ────────────────────────────────────────
   if (factGatheringForm) {
     factGatheringForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const formData = new FormData(factGatheringForm);
-      const answers = {
-        m1: formData.get('m1') === 'true',
-        m2: formData.get('m2') === 'true',
-        m3: formData.get('m3') === 'true',
-        m4: formData.get('m4') === 'true',
-        m5: formData.get('m5') === 'true',
-      };
+
+      // Kumpulkan jawaban secara dinamis dari FACT_QUESTIONS
+      const answers = {};
+      FACT_QUESTIONS.forEach(q => {
+        answers[q.id] = formData.get(q.id) === 'true';
+      });
 
       const result = evaluateFactGathering(answers);
 
@@ -87,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ── Render: Panel Analisis Pakar ────────────────────────────────────
+  // ── Render: Panel Analisis Pakar ─────────────────────────────────────
   function renderExpertSummary() {
     if (!expertSummary || !currentExpertData) return;
 
@@ -107,7 +130,6 @@ document.addEventListener('DOMContentLoaded', () => {
       bgClass = 'bg-green-50 border-green-300'; headerClass = 'text-green-800'; textClass = 'text-green-900';
     }
 
-    // Status Badge
     let statusBadge = '';
     if (isAlert) {
       statusBadge = `<div class="mb-3 text-sm font-bold text-white bg-red-600 px-4 py-1.5 rounded-full inline-flex items-center shadow-md border border-red-700">
@@ -121,28 +143,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const mainLabel = isManual ? currentExpertData.manualLabel : currentExpertData.label;
 
-    // Rules Fired
     const autoRulesFired = currentExpertData.rulesFired || [];
-    let rulesHtml = '';
-    if (autoRulesFired.length > 0) {
-      rulesHtml = `<div class="mt-3">
-        <div class="text-xs font-bold ${headerClass} tracking-wider mb-1 uppercase">Aturan Terpicu (Forward Chaining)</div>
-        <div class="flex flex-wrap gap-1.5">${autoRulesFired.map(r => `<span class="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-white font-mono">${r}</span>`).join('')}</div>
-      </div>`;
-    }
+    const rulesHtml = autoRulesFired.length > 0
+      ? `<div class="mt-3">
+          <div class="text-xs font-bold ${headerClass} tracking-wider mb-1 uppercase">Aturan Terpicu (Forward Chaining)</div>
+          <div class="flex flex-wrap gap-1.5">${autoRulesFired.map(r => `<span class="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-white font-mono">${r}</span>`).join('')}</div>
+        </div>` : '';
 
-    // Facts Gathered
     const facts = currentExpertData.factsGathered || {};
     const factLabels = {
       hasExaggeratedReward: '🔴 Janji Pahala Sangat Berlebihan (Mubalaghah Fasidah)',
       hasFabricatedThreat: '🔴 Ancaman Dibuat-buat / Pesan Berantai (Tahwil al-Kadzib)',
-      hasQuranContradiction: '🔴 Bertentangan dengan Nash Al-Quran (Mukhalafah lil-Qur\'an)',
+      hasQuranContradiction: "🔴 Bertentangan dengan Nash Al-Quran (Mukhalafah lil-Qur'an)",
       hasModernLanguage: '🔴 Lafaz Anakronistik / Era Modern (Tarikhiyyah al-Lafz)',
       hasBidahPractice: '🟡 Amalan Khusus Tanpa Asal (Ma Laa Asla Lahu fil Ibadah)',
-      hasPopularQuotes: '🟡 Slogan Populer / Nasihat Tabib (Masyhur \'ala Alsinatun-Naas)',
+      hasPopularQuotes: "🟡 Slogan Populer / Nasihat Tabib (Masyhur 'ala Alsinatun-Naas)",
       hasRegexRedFlag: '🔴 Redaksi Teks Sangat Mungkar (Shorih al-Kadzib)',
     };
-    const detectedFacts = Object.entries(factLabels).filter(([key]) => facts[key] === true).map(([, label]) => label);
+    const detectedFacts = Object.entries(factLabels)
+      .filter(([key]) => facts[key] === true)
+      .map(([, label]) => label);
 
     let factsHtml = '';
     if (detectedFacts.length > 0) {
@@ -157,13 +177,11 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
     }
 
-    // Reasons
     const reasons = currentExpertData.reasons || [];
-    let reasonsHtml = reasons.length > 0
+    const reasonsHtml = reasons.length > 0
       ? `<ul class="text-sm ${textClass} list-disc list-inside space-y-1.5 ml-1 mb-3 opacity-90">${reasons.map(r => `<li>${r}</li>`).join('')}</ul>`
       : '';
 
-    // Manual Result
     let manualHtml = '';
     if (isManual) {
       const manualRules = currentExpertData.manualRulesFired || [];
@@ -178,7 +196,6 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
     }
 
-    // Assemble
     expertSummary.innerHTML = `
       <div class="p-5 rounded-xl border-2 ${bgClass} shadow-sm transition-all duration-300">
         ${statusBadge}
