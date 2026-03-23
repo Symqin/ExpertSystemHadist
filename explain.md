@@ -57,13 +57,13 @@ Fungsi `gatherFacts()` menerima teks input user, menormalisasi teksnya (lowercas
 
 | Fakta (Qarinah) | Array Pola | Contoh Pattern |
 |-----------------|-----------|----------------|
-| `hasExaggeratedReward` | `EXAGGERATED_REWARD_PATTERNS` (16 pola) | "pahala tujuh puluh nabi", "malaikat kelelahan mencatat" |
-| `hasModernLanguage` | `MODERN_LANGUAGE_PATTERNS` (28+ pola) | "whatsapp", "pesawat terbang", "demokrasi" |
-| `hasQuranContradiction` | `QURAN_CONTRADICTION_PATTERNS` (9 pola) | "dosa ditanggung anak", "kiamat akan terjadi pada tahun" |
-| `hasFabricatedThreat` | `FABRICATED_THREAT_PATTERNS` (10 pola) | "sebarkan atau sial", "pasti masuk neraka" |
-| `hasBidahPractice` | `BID_AH_PRACTICE_PATTERNS` (11 pola) | "shalat raghaib", "puasa nisfu sya'ban" |
-| `hasPopularQuotes` | `POPULAR_QUOTES_AND_MEDICAL_HOAX` (8 pola) | "cinta tanah air sebagian dari iman" |
-| `hasRegexRedFlag` | `REGEX_RED_FLAGS` (11 pola regex) | `/tuntutlah? ilmu walau ke negeri cina/i` |
+| `hasExaggeratedReward` | `EXAGGERATED_REWARD_PATTERNS` (17 pola regex) | `/barang\s*siapa.*bergembira.*ramadhan/` |
+| `hasModernLanguage` | `MODERN_LANGUAGE_PATTERNS` (28+ pola string) | "whatsapp", "pesawat terbang", "demokrasi" |
+| `hasQuranContradiction` | `QURAN_CONTRADICTION_PATTERNS` (10 pola regex) | `/dosa\s+istri.*ditanggung\s+suami/` |
+| `hasFabricatedThreat` | `FABRICATED_THREAT_PATTERNS` (13 pola regex) | `/sebarkan\s+atau\s+(sial\|kena\s+musibah)/` |
+| `hasBidahPractice` | `BID_AH_PRACTICE_PATTERNS` (11 pola regex) | `/sh[oa]lat\s+raghaib/`, `/(puasa\|malam)\s+nisfu\s+sya['\s]?a?ban/` |
+| `hasPopularQuotes` | `POPULAR_QUOTES_AND_MEDICAL_HOAX` (8 pola regex) | `/cinta\s+(tanah\s+air\|wathan).*sebagian.*iman/` |
+| `hasRegexRedFlag` | `REGEX_RED_FLAGS` (11 pola regex) | `/tuntutlah?\s+ilmu\s+walau\s+ke\s+negeri\s+cina/i` |
 
 > **Metode Hybrid (Regex & String):** Knowledge base mendukung campuran antara objek `RegExp` (untuk kalimat dengan variasi spasi/kata) dan `String` literal (untuk kata kunci sederhana). Keduanya diproses secara otomatis oleh fungsi `containsAny`.
 
