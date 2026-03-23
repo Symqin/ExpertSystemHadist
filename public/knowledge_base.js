@@ -105,14 +105,17 @@ const FABRICATED_THREAT_PATTERNS = [
 // [Ta'liq Al-Muhaddith]: "Sebagian kaum mengarang hadits untuk melegitimasi mu'amalah atau ritual 
 // yang mereka ada-adakan. Tidak ada asalnya (la asla lahu) dalam kitab-kitab Sunnah yang mu'tamad."
 const BID_AH_PRACTICE_PATTERNS = [
-  'shalat raghaib', 'sholat raghaib', 'shalat alfiyah',
-  'puasa nisfu sya ban', "puasa nisfu sya'ban", 'puasa nisfu syaaban',
-  'malam nisfu sya ban', 'puasa rajab sebulan penuh',
-  'memakai celak pada hari asyura, matanya tidak akan sakit',
-  'shalat rebo wekasan', 'mandi pada hari rabu terakhir bulan shafar',
-  'puasa di hari tarwiyah, akan dihapus dosa setahun',
-  'shalat hajat seribu rakaat', 'puasa pada hari asyura bagaikan puasa setahun',
-  'menyapu debu mimbarku', 'mengusap makamku niscaya dikabulkan doanya',
+  /sh[oa]lat\s+raghaib/,
+  /shalat\s+alfiyah/,
+  /(puasa|malam)\s+nisfu\s+sya['\s]?a?ban/,
+  /puasa\s+rajab\s+sebulan\s+penuh/,
+  /memakai\s+celak.*hari\s+asyura.*matanya(\s+tidak\s+akan\s+sakit)?/,
+  /shalat\s+rebo\s+wekasan/,
+  /mandi\s+pada\s+hari\s+rabu\s+terakhir\s+bulan\s+shafar/,
+  /puasa(?:\s+di\s+hari|.*pada\s+hari)\s*(tarwiyah|asyura).*(dihapus\s+dosa|bagaikan\s+puasa)\s+setahun/,
+  /shalat\s+hajat\s+seribu\s+rakaat/,
+  /menyapu\s+debu\s+mimbarku/,
+  /mengusap\s+makamku.*dikabulkan\s+doanya/,
 ];
 
 // FAKTA 6: Pepatah populer / hoaks medis yang sering diklaim hadits (Masyhur 'ala Alsinatun-Naas)
