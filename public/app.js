@@ -168,13 +168,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const facts = currentExpertData.factsGathered || {};
     const factLabels = {
-      hasExaggeratedReward: '🔴 Janji Pahala Sangat Berlebihan (Mubalaghah Fasidah)',
-      hasFabricatedThreat: '🔴 Ancaman Dibuat-buat / Pesan Berantai (Tahwil al-Kadzib)',
-      hasQuranContradiction: "🔴 Bertentangan dengan Nash Al-Quran (Mukhalafah lil-Qur'an)",
-      hasModernLanguage: '🔴 Lafaz Anakronistik / Era Modern (Tarikhiyyah al-Lafz)',
-      hasBidahPractice: '🟡 Amalan Khusus Tanpa Asal (Ma Laa Asla Lahu fil Ibadah)',
-      hasPopularQuotes: "🟡 Slogan Populer / Nasihat Tabib (Masyhur 'ala Alsinatun-Naas)",
-      hasRegexRedFlag: '🔴 Redaksi Teks Sangat Mungkar (Shorih al-Kadzib)',
+      hasExaggeratedReward: '🔴 Janji Pahala Sangat Berlebihan',
+      hasFabricatedThreat: '🔴 Ancaman Dibuat-buat / Pesan Berantai',
+      hasQuranContradiction: "🔴 Bertentangan dengan Nash Al-Quran",
+      hasModernLanguage: '🔴 Lafaz Anakronistik / Era Modern ',
+      hasBidahPractice: '🟡 Amalan Khusus Tanpa Asal',
+      hasPopularQuotes: "🟡 Slogan Populer / Nasihat Tabib",
+      hasRegexRedFlag: '🔴 Redaksi Teks Sangat Mungkar',
     };
     const detectedFacts = Object.entries(factLabels)
       .filter(([key]) => facts[key] === true)
@@ -183,13 +183,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let factsHtml = '';
     if (detectedFacts.length > 0) {
       factsHtml = `<div class="mt-3 pt-3 border-t border-opacity-30 border-gray-400">
-        <div class="text-xs font-bold ${headerClass} tracking-wider mb-1 uppercase">Qarinah (Fakta) yang Ditemukan</div>
+        <div class="text-xs font-bold ${headerClass} tracking-wider mb-1 uppercase">(Fakta) yang Ditemukan</div>
         <ul class="text-sm ${textClass} list-disc list-inside space-y-1 ml-1">${detectedFacts.map(f => `<li>${f}</li>`).join('')}</ul>
       </div>`;
     } else if (!isManual) {
       factsHtml = `<div class="mt-3 pt-3 border-t border-opacity-30 border-gray-400">
-        <div class="text-xs font-bold ${headerClass} tracking-wider mb-1 uppercase">Qarinah (Fakta) yang Ditemukan</div>
-        <p class="text-sm ${textClass} opacity-80">Tidak ada qarinah (red-flag) yang terdeteksi secara otomatis oleh sistem.</p>
+        <div class="text-xs font-bold ${headerClass} tracking-wider mb-1 uppercase"> (Fakta) yang Ditemukan</div>
+        <p class="text-sm ${textClass} opacity-80">Tidak ada fakta (red-flag) yang terdeteksi secara otomatis oleh sistem.</p>
       </div>`;
     }
 
