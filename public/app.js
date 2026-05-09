@@ -1,9 +1,4 @@
-/**
- * =============================================================================
- * UI LOGIC — Controller antarmuka pengguna
- * Menggunakan FACT_QUESTIONS (dari fact_evaluator.js) untuk render form dinamis.
- * =============================================================================
- */
+// UI LOGIC — Controller antarmuka pengguna
 
 document.addEventListener('DOMContentLoaded', () => {
   const searchForm = document.getElementById('searchForm');
@@ -17,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let currentExpertData = null;
 
-  // ── Render form penelusuran fakta dari FACT_QUESTIONS (data-driven) ──
+  // Render form penelusuran fakta dari FACT_QUESTIONS
   function renderFactGatheringForm() {
     if (!factGatheringForm || typeof FACT_QUESTIONS === 'undefined') return;
     factGatheringForm.innerHTML = FACT_QUESTIONS.map(q => `
@@ -46,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   renderFactGatheringForm();
 
-  // ── Listener tombol contoh ───────────────────────────────────────────
+  // Listener tombol contoh
   document.querySelectorAll('.example-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       hadithInput.value = e.target.textContent;
@@ -54,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ── Form Submit: Evaluasi Otomatis ───────────────────────────────────
+  // Form Submit: Evaluasi Otomatis
   searchForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const text = hadithInput.value.trim();
@@ -87,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ── Penelusuran Fakta (M1-M5) ────────────────────────────────────────
+  // Penelusuran Fakta (M1-M5)
   if (factGatheringForm) {
     factGatheringForm.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -112,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ── Render: Panel Analisis Pakar ─────────────────────────────────────
+  // Render: Panel Analisis Pakar
   function renderExpertSummary() {
     if (!expertSummary || !currentExpertData) return;
 

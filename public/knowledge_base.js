@@ -1,14 +1,6 @@
-/**
- * =============================================================================
- * SISTEM PAKAR BERBASIS ATURAN (RULE-BASED EXPERT SYSTEM) — Client-Side
- * Metode Inferensi: Forward Chaining
- * Seluruh logika berjalan di browser, tanpa server backend.
- * =============================================================================
- */
+// SISTEM PAKAR BERBASIS ATURAN (RULE-BASED EXPERT SYSTEM) — Client-Side
 
-// =============================================================================
 // BASIS PENGETAHUAN (KNOWLEDGE BASE) — Pola-pola Red Flag
-// =============================================================================
 
 /**
  * Normalisasi teks: lowercase, hapus tanda baca, rapikan spasi.
@@ -22,10 +14,7 @@ function normalizeText(text) {
     .trim();
 }
 
-// FAKTA 1: Janji pahala sangat berlebihan (Mubalaghah Fasidah)
-// [Ta'liq Al-Muhaddith]: "Di antara tanda matan yang maudhu' adalah Ad-Da'wa Al-Baathilah (klaim yang batil) 
-// berupa janji pahala yang mutlak sangat besar untuk amalan yang ringan, atau ancaman neraka yang dahsyat 
-// untuk kesalahan kecil. Akal dan naql menolaknya." (Ibn al-Qayyim, Al-Manar al-Munif)
+// FAKTA 1: Janji pahala sangat berlebihan 
 const EXAGGERATED_REWARD_PATTERNS = [
   /barang\s*siapa.*bergembira.*ramadhan.*diharamkan.*neraka/,
   /diampuni.*dosa.*tujuh\s+turunan/,
@@ -42,14 +31,10 @@ const EXAGGERATED_REWARD_PATTERNS = [
   /minum\s+kopi.*masuk\s+surga/,
   /selama\s+rasa\s+kopi\s+masih\s+ada/,
   /malaikat.*ampun.*selama\s+rasa\s+kopi/,
-  /membebaskan\s+(seribu|1\s*000)\s+budak.*ismail/,
   /barang\s*siapa.*shalawat.*hari\s+jumat.*(seribu|1\s*000)\s+kali/,
 ];
 
-// FAKTA 2: Bahasa/istilah modern yang anakronistik (Tarikhiyyah al-Lafz)
-// [Ta'liq Al-Muhaddith]: "Mustahil Nabi ﷺ —yang jawami' al-kalim dan hidup di jazirah Arab abad ke-7— 
-// menggunakan lafaz yang baru dikonstruksi oleh peradaban modern (Anakronisme). Ini adalah seburuk-buruk 
-// kedustaan (kadzib) orang-orang jahil di zaman ini."
+// FAKTA 2: Bahasa/istilah modern yang anakronistik 
 const MODERN_LANGUAGE_PATTERNS = [
   'televisi', 'internet', 'komputer', 'handphone', 'hp', 'smartphone',
   'media sosial', 'whatsapp', 'facebook', 'instagram', 'youtube', 'twitter', 'tiktok',
@@ -57,7 +42,6 @@ const MODERN_LANGUAGE_PATTERNS = [
   'demokrasi', 'komunisme', 'sosialisme', 'kapitalisme', 'liberalisme', 'sekularisme',
   'partai politik', 'pemilu', 'presiden republik', 'dewan perwakilan',
   'bank sentral', 'saham', 'investasi online', 'kripto', 'bitcoin', 'pinjol',
-  // Catatan: 'cina' & 'jepang' dihapus — keduanya sudah dikenal pada abad ke-7 M, bukan anakronisme.
   'amerika', 'indonesia', 'malaysia', 'australia', 'eropa', 'rusia',
   'vaksin', 'virus corona', 'covid', 'bakteri', 'antibiotik', 'paracetamol',
   'operasi plastik', 'transplantasi', 'kanker', 'diabetes', 'kolesterol',
@@ -65,10 +49,7 @@ const MODERN_LANGUAGE_PATTERNS = [
   'zodiak', 'ramalan bintang', 'alien', 'ufo',
 ];
 
-// FAKTA 3: Matan bertentangan dengan prinsip Al-Quran yang qath'i (Mukhalafah lil-Qur'an)
-// [Ta'liq Al-Muhaddith]: "Setiap hadits yang menyalahi nash Al-Quran yang syarih (tegas) dan 
-// tidak bisa di-jama' (dikompromikan), maka ketahuilah bahwa sanadnya gelap dan matannya bathil. 
-// Kalamullah tidak mungkin bertabrakan dengan sabda Rasul-Nya ﷺ."
+// FAKTA 3: Matan bertentangan dengan prinsip Al-Quran 
 const QURAN_CONTRADICTION_PATTERNS = [
   /selangkah\s+anak\s+perempuan.*keluar.*tanpa\s+menutup\s+aurat.*selangkah.*ayah.*ditarik.*neraka/,
   /dosa\s+istri.*ditanggung\s+suami/, // Bertentangan dengan QS. Al-An'am: 164 (Setiap jiwa menanggung dosanya sendiri)
@@ -82,9 +63,7 @@ const QURAN_CONTRADICTION_PATTERNS = [
   /anak\s+zina.*tidak\s+akan\s+masuk\s+surga/, // Bertentangan dengan QS. Al-An'am: 164
 ];
 
-// FAKTA 4: Ancaman tidak proporsional / pola pesan berantai (Tahwil al-Kadzib)
-// [Ta'liq Al-Muhaddith]: "Pola ini sering kita temukan di selebaran-selebaran gelap atau pesan digital berantai. 
-// Ini adalah tipu daya syaithan untuk menakut-nakuti awam dengan membawa-bawa nama Nabi ﷺ."
+// FAKTA 4: Ancaman tidak proporsional / pola pesan berantai 
 const FABRICATED_THREAT_PATTERNS = [
   /(lima\s+belas|15)\s+siksaan.*meninggalkan\s+shalat/,
   /(enam|6)\s+siksaan.*dunia.*(tiga|3)\s+siksaan.*mati/,
@@ -101,13 +80,11 @@ const FABRICATED_THREAT_PATTERNS = [
   /bagi(kan)?\s+ke\s+(sepuluh|10)\s+kontak/,
 ];
 
-// FAKTA 5: Praktik bid'ah / amalan kontroversial (Ma Laa Asla Lahu fil Ibadah)
-// [Ta'liq Al-Muhaddith]: "Sebagian kaum mengarang hadits untuk melegitimasi mu'amalah atau ritual 
-// yang mereka ada-adakan. Tidak ada asalnya (la asla lahu) dalam kitab-kitab Sunnah yang mu'tamad."
+// FAKTA 5: Praktik bid'ah / amalan kontroversial 
 const BID_AH_PRACTICE_PATTERNS = [
   /sh[oa]lat\s+raghaib/,
   /shalat\s+alfiyah/,
-  /(puasa|malam)\s+nisfu\s+sya['\s]?a?ban/,
+  /puasa\s+nisfu\s+sya['\s]?a?ban/,
   /puasa\s+rajab\s+sebulan\s+penuh/,
   /memakai\s+celak.*hari\s+asyura.*matanya(\s+tidak\s+akan\s+sakit)?/,
   /shalat\s+rebo\s+wekasan/,
@@ -119,9 +96,6 @@ const BID_AH_PRACTICE_PATTERNS = [
 ];
 
 // FAKTA 6: Pepatah populer / hoaks medis yang sering diklaim hadits (Masyhur 'ala Alsinatun-Naas)
-// [Ta'liq Al-Muhaddith]: "Al-'Ajlouni dalam Kasyf al-Khafa' sering mengingatkan bahwa banyak kalimat 
-// hikmah dari tabib Arab, filosof, atau orang zuhud yang seiring waktu lisan orang awam membajaknya 
-// dan menyandarkannya kepada sayyidul mursalin ﷺ."
 const POPULAR_QUOTES_AND_MEDICAL_HOAX = [
   /cinta\s+(tanah\s+air|wathan).*sebagian.*iman/, // Hubbul wathan minal iman (Maudhu')
   /tuntut(lah)?\s+ilmu\s+dari\s+buaian.*liang\s+lahat/, // Pepatah Arab
@@ -136,7 +110,6 @@ const POPULAR_QUOTES_AND_MEDICAL_HOAX = [
 ];
 
 // FAKTA 7: Pola regex spesifik (Shorih al-Kadzib)
-// [Ta'liq Al-Muhaddith]: "Aturan pendeteksian pola identik untuk teks-teks parah yang sudah di-tahdzir ulama."
 const REGEX_RED_FLAGS = [
   // Kasus 1-5: Pola Lama
   { pattern: /tuntut(lah)?\s+ilmu\s+(walau|meski)\s+(ke|sampai)\s+negeri\s+cina/i, issue: 'Dha\'if Jiddan / Diperdebatkan. dari sisi sanad, mayoritas ulama hadits seperti Ibn Hibban, Al-\'Uqaili, dan Al-Albani menilainya sangat lemah atau tidak ada asal usulnya sebagai hadits marfu\' (sabda Nabi).' },
@@ -164,10 +137,7 @@ const REGEX_RED_FLAGS = [
   { pattern: /siapa\s+yang\s+meninggalkan\s+shalat.*?disiksa\s+dengan\s+(lima\s+belas|15)\s+siksaan/i, issue: 'Maudhu\' (Hadits legendaris tentang 15 siksaan bagi peninggal shalat yang sering tertulis di sampul Yasin/selebaran. Bahkan ad-Dzahabi & Ibnu Hajar sepakat ini palsu).' },
 ];
 
-// =============================================================================
 // FUNGSI PENCOCOKAN POLA
-// =============================================================================
-
 function containsAny(text, patterns) {
   return patterns.some(p => {
     if (p instanceof RegExp) {
@@ -190,9 +160,7 @@ function matchRegexFlags(text, regexFlags) {
   return matched;
 }
 
-// =============================================================================
-// TAHAP 1: PENGUMPULAN FAKTA (FACT GATHERING)
-// =============================================================================
+// PENGUMPULAN FAKTA (FACT GATHERING)
 
 function gatherFacts(inputText) {
   const normalized = normalizeText(inputText);
@@ -209,9 +177,7 @@ function gatherFacts(inputText) {
   return facts;
 }
 
-// =============================================================================
-// TAHAP 2: FORWARD CHAINING & CERTAINTY FACTOR — EVALUASI ATURAN (R1..R8)
-// =============================================================================
+// FORWARD CHAINING & CERTAINTY FACTOR — EVALUASI ATURAN (R1..R8)
 
 const SEVERITY = {
   'REQUIRES_FACT_GATHERING': 0,

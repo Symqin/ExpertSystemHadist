@@ -1,13 +1,5 @@
 /**
- * =============================================================================
  * EVALUASI PENELUSURAN FAKTA (FACT GATHERING) — Data-Driven Config
- * Tahap 3 dari Sistem Pakar: Aturan R9-R13 (Inferensi Manual)
- *
- * Untuk MENAMBAH pertanyaan baru:
- *   1. Tambah satu objek baru ke array FACT_QUESTIONS di bawah.
- *   2. Tambah entri di FACT_RULES sesuai 'id' pertanyaan.
- *   3. Selesai — form HTML dan logika evaluasi otomatis menyesuaikan.
- * =============================================================================
  */
 
 /**
@@ -15,9 +7,9 @@
  * Ini adalah SATU-SATUNYA tempat edit untuk menambah/mengubah pertanyaan.
  *
  * Properti:
- *  - id     : string unik, digunakan sebagai name pada input radio.
- *  - label  : label singkat untuk identifikasi (opsional, untuk debugging).
- *  - text   : teks pertanyaan yang tampil kepada pengguna.
+ *  - id    : string unik, digunakan sebagai name pada input radio.
+ *  - label : label singkat untuk identifikasi (opsional, untuk debugging).
+ *  - text  : teks pertanyaan yang tampil kepada pengguna.
  */
 const FACT_QUESTIONS = [
   {
